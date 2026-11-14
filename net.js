@@ -6,7 +6,9 @@ function fromHash(){
  try{var m=location.hash.match(/cfg=([^&]+)/);if(m)return JSON.parse(atob(decodeURIComponent(m[1])))}catch(e){}
  return null;
 }
-function getCfg(){
+function clean(c){if(c&&c.u){c.u=String(c.u).trim().replace(/[\s.\/]+$/,'');c.k=String(c.k||'').trim()}return c}
+function getCfg(){return clean(getCfg0())}
+function getCfg0(){
  var c=fromHash();
  if(c&&c.u&&c.k){try{localStorage.setItem(KEY,JSON.stringify(c))}catch(e){}return c}
  try{c=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){c=null}
