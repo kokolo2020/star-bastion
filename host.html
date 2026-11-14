@@ -504,12 +504,19 @@ function drawTower(t){
  ctx.rotate(t.ang==null?-1.57:t.ang);
  if(TIMG[t.k]._ok){ctx.rotate(1.57);ctx.drawImage(TIMG[t.k],-21,-21,42,42);ctx.restore();for(let i=0;i<t.l;i++){ctx.fillStyle='#ffe03d';ctx.fillRect(t.x-t.l*3.5+i*7,t.y-25,5,3)}return}
  ctx.fillStyle=light(b.col,.2);ctx.shadowColor=b.col;ctx.shadowBlur=9;
- const len=t.k===4?22:t.k===1?16:14,wd=t.k===1?8:t.k===4?5:4;
- ctx.fillRect(0,-wd/2,len,wd);ctx.shadowBlur=0;
- ctx.fillStyle=b.col;ctx.beginPath();ctx.arc(0,0,6,0,6.28);ctx.fill();
+ let len=20;
+ switch(t.k){
+  case 0:len=20;ctx.fillStyle=light(b.col,.25);ctx.fillRect(2,-8,len-2,4.5);ctx.fillRect(2,3.5,len-2,4.5);ctx.fillStyle='#fff';ctx.fillRect(len-3,-8,3,4.5);ctx.fillRect(len-3,3.5,3,4.5);break;
+  case 1:len=21;ctx.fillStyle=light(b.col,.15);ctx.fillRect(0,-6.5,len,13);ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillRect(len-5,-9,5,18);ctx.fillStyle=b.col;ctx.fillRect(5,-6.5,3,13);break;
+  case 2:len=27;ctx.fillStyle=light(b.col,.3);ctx.fillRect(0,-1.8,len-7,3.6);ctx.beginPath();ctx.moveTo(len,0);ctx.lineTo(len-9,-5.5);ctx.lineTo(len-9,5.5);ctx.closePath();ctx.fillStyle='#fff';ctx.fill();break;
+  case 3:len=19;ctx.fillStyle=light(b.col,.2);ctx.fillRect(0,-4.5,len-4,9);ctx.beginPath();ctx.arc(len-2,0,6.5,0,6.28);ctx.fillStyle='#e8eeff';ctx.fill();break;
+  case 4:len=31;ctx.fillStyle=light(b.col,.2);ctx.fillRect(0,-3.2,len,6.4);ctx.fillStyle='#fff';for(let i=7;i<len-2;i+=7)ctx.fillRect(i,-6,2.2,12);break;
+ }
+ ctx.shadowBlur=0;ctx.fillStyle=b.col;ctx.beginPath();ctx.arc(0,0,7.5,0,6.28);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(0,0,2.6,0,6.28);ctx.fill();
  if(t.fl>0){glow(true);radial(len+3,0,16,'#ffffff',.9);radial(len+3,0,24,b.col,.7);glow(false)}
  ctx.restore();
  for(let i=0;i<t.l;i++){ctx.fillStyle='#ffe03d';ctx.fillRect(t.x-t.l*3.5+i*7,t.y-23,5,3)}
+ txt(b.n,t.x,t.y+21,8,b.col,'center','800');
 }
 function drawFx(){
  glow(true);
