@@ -23,9 +23,9 @@ function open(room,onMsg,onStatus){
   var client=window.supabase.createClient(cfg.u,cfg.k,{realtime:{params:{eventsPerSecond:30}}});
   var ch=client.channel('starbastion-'+room,{config:{broadcast:{self:false,ack:false}}});
   ch.on('broadcast',{event:'m'},function(p){try{onMsg(p.payload)}catch(e){console.error(e)}});
-  ch.subscribe(function(s){
+  ch.subscribe(function(s,err){
    if(!onStatus)return;
-   onStatus(s==='SUBSCRIBED'?'online':(s==='CLOSED'||s==='CHANNEL_ERROR'||s==='TIMED_OUT')?'error':'connecting');
+   onStatus(s==='SUBSCRIBED'?'online':(s==='CLOSED'||s==='CHANNEL_ERROR'||s==='TIMED_OUT')?'error':'connecting',s+(err?': '+(err.message||err):''));
   });
   return{mode:'supabase',send:function(m){ch.send({type:'broadcast',event:'m',payload:m})},close:function(){client.removeChannel(ch)}};
  }

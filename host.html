@@ -68,7 +68,7 @@ function pickRoom(){
  return r;
 }
 const ROOM=pickRoom();
-let netStatus='connecting',netMode='local';
+let netStatus='connecting',netMode='local',netDetail='';
 let net=null;
 function joinUrl(){
  const base=new URL('play.html',location.href);base.search='?room='+ROOM;
@@ -605,7 +605,7 @@ function drawPrep(){
   txt(shortUrl(),FW/2+60,py+232,17,'#c9d4ff','left','600');
   const left=act.length?Math.ceil(prepT):'';
   txt(act.length?act.length+' player'+(act.length>1?'s':'')+' ready to defend  ·  starts in '+left+'s  (Space = start now)':'Waiting for the first player...',FW/2,py+358,20,act.length?'#5dff7a':'#8a97c8','center','700');
-  txt(netMode==='supabase'?(netStatus==='online'?'ONLINE':'connecting...'):'LOCAL MODE: tap here (or press K) to add Supabase keys.',FW/2,py+390,14,netMode==='supabase'?'#5dff7a':'#ffb06a','center','600');
+  txt(netMode==='supabase'?(netStatus==='online'?'ONLINE':(netStatus==='error'?'CONNECTION FAILED':'connecting...')+' ['+netDetail+'] '+((window.SBNet.getCfg()||{}).u||'')+'  (tap to re-enter keys)'):'LOCAL MODE: tap here (or press K) to add Supabase keys.',FW/2,py+390,14,netMode==='supabase'?'#5dff7a':'#ffb06a','center','600');
  }else{
   const rd=act.filter(p=>p.rd).length;
   txt('NEXT: WAVE '+(G.wave+1)+(((G.wave+1)%5===0)?'  ⚠ BOSS':''),FW/2,TOPY+60,40,((G.wave+1)%5===0)?'#ff5577':'#35e6ff','center','800',16);
@@ -700,7 +700,7 @@ addEventListener('keydown',e=>{
 });
 
 newRound();
-net=window.SBNet.open(ROOM,onMsg,s=>{netStatus=s;if(s==='online'||s==='local')pushSnap()});
+net=window.SBNet.open(ROOM,onMsg,(s,d)=>{netStatus=s;netDetail=d||'';if(s==='online'||s==='local')pushSnap()});
 netMode=net.mode;
 makeQR();
 window.__host={onMsg,update,draw,sendSnap,snapshot,get state(){return state},get G(){return G},players,get enemies(){return enemies},get towers(){return towers},startWave,newRound,get net(){return net},ROOM};
