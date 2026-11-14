@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#070516">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="assets/art/icon-192-v2.png">
 <title>Star Bastion Controller</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -51,15 +51,17 @@ button:disabled{opacity:.4}
 .card.sel{background:#1a2858}
 #novaBtn{font-size:22px;padding:18px;background:#ffe03d;margin-top:auto}
 </style>
+<link rel="stylesheet" href="premium.css">
+<link rel="icon" href="assets/art/icon-192-v2.png">
 </head>
-<body>
+<body class="controller">
 <div id="chip" class="off">...</div>
 <div id="msg"></div>
 
 <div class="scr on" id="s-join">
- <h1>STAR BASTION</h1><div class="sub">Co-op fortress defense</div>
- <input id="nm" placeholder="Your name" maxlength="12" autocomplete="off">
- <input id="rm" class="code" placeholder="ROOM" maxlength="6" autocomplete="off">
+ <img class="join-art" src="assets/art/icon-512-v2.png" alt="Star Bastion fortress"><h1>STAR BASTION</h1><div class="sub">YOUR STATION. OUR LAST LINE.</div>
+ <input id="nm" aria-label="Your name" placeholder="Your name" maxlength="12" autocomplete="off">
+ <input id="rm" aria-label="Room code" class="code" placeholder="ROOM" maxlength="6" autocomplete="off">
  <button id="goJoin">JOIN GAME</button>
  <a id="dg" style="margin-top:22px;color:#8a97c8;text-align:center;font-size:13px">Run connection test</a>
 </div>
@@ -162,8 +164,9 @@ function renderPick(){
  let h='';
  for(let s=0;s<snap.os.length;s++){
   const oid=snap.os[s],o=oid&&snap.pl.find(x=>x.id===oid);
-  h+='<div class="st'+(o?' taken':'')+'" data-s="'+s+'" style="border-color:'+SCOL[s]+';color:'+SCOL[s]+'">STATION '+(s+1)+'<small>'+(o?esc(o.nm):'free')+'</small></div>';
+  h+='<div role="button" tabindex="0" class="st'+(o?' taken':'')+'" data-s="'+s+'" style="border-color:'+SCOL[s]+';color:'+SCOL[s]+'">STATION '+(s+1)+'<small>'+(o?esc(o.nm):'free')+'</small></div>';
  }
+ if(renderPick.html===h)return;renderPick.html=h;
  $('grid6').innerHTML=h;
  $('grid6').querySelectorAll('.st').forEach(e=>e.onclick=()=>{send({t:'claim',s:+e.dataset.s});if(navigator.vibrate)navigator.vibrate(30)});
 }
@@ -178,11 +181,11 @@ function renderPlay(p){
  for(let i=0;i<6;i++){
   const t=p.sl[i];
   if(t){let pp='';for(let q=1;q<=5;q++)pp+='<i'+(q>t[1]?' class="o"':'')+'></i>';
-   h+='<div class="sl f" data-i="'+i+'" style="border-color:'+TY[t[0]].col+';color:'+TY[t[0]].col+';background:linear-gradient(160deg,'+TY[t[0]].col+'30,#0d1530 70%)">'+ICON(t[0])+'<div>'+TY[t[0]].n+'</div><div class="pips">'+pp+'</div><small>'+(t[1]<5?'UPGRADE ⚡'+t[2]:'MAX LEVEL')+'</small></div>';}
-  else h+='<div class="sl" data-i="'+i+'"><span class="pl" style="font-size:38px">+</span><small style="color:#6a79b8">BUILD</small></div>';
+   h+='<div role="button" tabindex="0" class="sl f" data-i="'+i+'" style="border-color:'+TY[t[0]].col+';color:'+TY[t[0]].col+';background:linear-gradient(160deg,'+TY[t[0]].col+'30,#0d1530 70%)">'+ICON(t[0])+'<div>'+TY[t[0]].n+'</div><div class="pips">'+pp+'</div><small>'+(t[1]<5?'UPGRADE ⚡'+t[2]:'MAX LEVEL')+'</small></div>';}
+  else h+='<div role="button" tabindex="0" class="sl" data-i="'+i+'"><span class="pl" style="font-size:38px">+</span><small style="color:#6a79b8">BUILD</small></div>';
  }
- $('slots').innerHTML=h;
- $('slots').querySelectorAll('.sl').forEach(e=>e.onclick=()=>openSheet(+e.dataset.i));
+ if(renderPlay.slotsHTML!==h){renderPlay.slotsHTML=h;$('slots').innerHTML=h;
+ $('slots').querySelectorAll('.sl').forEach(e=>e.onclick=()=>openSheet(+e.dataset.i))}
  const inPrep=snap.st==='prep';
  $('rdy').style.display=inPrep?'block':'none';
  $('rdy').textContent=p.rd?'READY ✓ (tap to cancel)':'READY';
@@ -193,16 +196,17 @@ function renderPlay(p){
 }
 function openSheet(i,keep){
  const p=me();if(!p)return;sheetSlot=i;const t=p.sl[i],sh=$('sheet');
+ const key=JSON.stringify([i,p.sl[i],p.en,snap.ds,snap.st]);if(keep&&openSheet.lastKey===key)return;openSheet.lastKey=key;
  let h='';
  if(t){
   h+='<div style="margin-bottom:8px;color:'+TY[t[0]].col+'">'+TY[t[0]].n+' · level '+t[1]+'</div>';
-  if(t[1]<5)h+='<div class="opt'+(p.en<t[2]?' no':'')+'" style="border-color:#ffe03d" data-a="up">Upgrade<span>⚡'+t[2]+'</span></div>';
-  if(snap.st==='prep')h+='<div class="opt" style="border-color:#ff6688" data-a="sell">Sell (60% back)</div>';
+  if(t[1]<5)h+='<div role="button" tabindex="0" class="opt'+(p.en<t[2]?' no':'')+'" style="border-color:#ffe03d" data-a="up">Upgrade<span>⚡'+t[2]+'</span></div>';
+  if(snap.st==='prep')h+='<div role="button" tabindex="0" class="opt" style="border-color:#ff6688" data-a="sell">Sell (60% back)</div>';
  }else{
   h+='<div style="margin-bottom:8px">Build turret</div>';
-  TY.forEach((y,k)=>{const c=Math.round(y.c*(1-(snap.ds||0)));h+='<div class="opt'+(p.en<c?' no':'')+'" style="border-color:'+y.col+';color:'+y.col+'" data-a="b'+k+'"><span class="l">'+ICON(k)+'<span>'+y.n+'<div class="d">'+y.d+'</div></span></span><span>⚡'+c+'</span></div>'});
+  TY.forEach((y,k)=>{const c=Math.round(y.c*(1-(snap.ds||0)));h+='<div role="button" tabindex="0" class="opt'+(p.en<c?' no':'')+'" style="border-color:'+y.col+';color:'+y.col+'" data-a="b'+k+'"><span class="l">'+ICON(k)+'<span>'+y.n+'<div class="d">'+y.d+'</div></span></span><span>⚡'+c+'</span></div>'});
  }
- h+='<div class="opt" style="border-color:#3a4a8a;justify-content:center" data-a="x">Close</div>';
+ h+='<div role="button" tabindex="0" class="opt" style="border-color:#3a4a8a;justify-content:center" data-a="x">Close</div>';
  sh.innerHTML=h;sh.classList.add('on');
  sh.querySelectorAll('.opt').forEach(e=>e.onclick=()=>{
   const a=e.dataset.a;
@@ -214,8 +218,10 @@ function closeSheet(){sheetSlot=-1;$('sheet').classList.remove('on')}
 function renderCards(){
  closeSheet();
  $('cdSub').textContent='Vote for a team upgrade · '+snap.tm+'s';
+ if(renderCards.wave!==snap.w){renderCards.wave=snap.w;renderCards.mine=undefined}
  const p=me(),mine=renderCards.mine;
- $('cards').innerHTML=snap.cd.map((c,i)=>'<div class="card'+(mine===i?' sel':'')+'" data-c="'+i+'" style="border-color:'+c.col+'"><div class="big" style="color:'+c.col+'">'+esc(c.n)+'</div><div style="color:#aab6e6;font-weight:500">'+esc(c.d)+'</div><div style="margin-top:6px;color:#fff">'+c.v+' vote'+(c.v===1?'':'s')+'</div></div>').join('');
+ const cardsHTML=snap.cd.map((c,i)=>'<div role="button" tabindex="0" class="card'+(mine===i?' sel':'')+'" data-c="'+i+'" style="border-color:'+c.col+'"><div class="big" style="color:'+c.col+'">'+esc(c.n)+'</div><div style="color:#aab6e6;font-weight:500">'+esc(c.d)+'</div><div style="margin-top:6px;color:#fff">'+c.v+' vote'+(c.v===1?'':'s')+'</div></div>').join('');
+ if(renderCards.html===cardsHTML)return;renderCards.html=cardsHTML;$('cards').innerHTML=cardsHTML;
  $('cards').querySelectorAll('.card').forEach(e=>e.onclick=()=>{renderCards.mine=+e.dataset.c;send({t:'vote',c:+e.dataset.c});if(navigator.vibrate)navigator.vibrate(30);renderCards()});
 }
 $('rdy').onclick=()=>{const p=me();if(p)send({t:'ready',v:!p.rd})};
@@ -225,6 +231,7 @@ $('chg').onclick=()=>{
  if(p&&p.sl.some(x=>x)){if(!confirm('Leave the game? Your turrets will be removed.'))return}
  send({t:'leave'});snap=null;show('join');joined=false;
 };
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('[role=button]')){e.preventDefault();e.target.click()}});
 $('sheet').addEventListener('click',e=>e.stopPropagation());
 document.addEventListener('click',e=>{if(sheetSlot>=0&&!e.target.closest('.sl')&&!e.target.closest('#sheet'))closeSheet()});
 setInterval(()=>{
@@ -266,6 +273,7 @@ function drawBF(){
  for(const b of BL){const t=(now-b.t0)/1000,x=b.x+b.vx*t,y=b.y+b.vy*t,c=['#35e6ff','#ffa63d','#5dff7a','#8aa8ff','#ff5de0'][b.k]||'#fff';
   bx.strokeStyle=c;bx.lineWidth=5;bx.beginPath();bx.moveTo(x-b.vx*.03,y-b.vy*.03);bx.lineTo(x,y);bx.stroke()}
  for(const t of snap.tw||[]){const own=p&&t[4]===p.s,c=['#35e6ff','#ffa63d','#5dff7a','#8aa8ff','#ff5de0'][t[2]];
+  if(IMG[t[2]]._ok){bx.drawImage(IMG[t[2]],t[0]-24,t[1]-24,48,48);continue}
   bx.fillStyle='#0b1228';bx.strokeStyle=c;bx.lineWidth=own?6:4;bx.beginPath();bx.arc(t[0],t[1],own?17:13,0,6.28);bx.fill();bx.stroke();
   bx.fillStyle=c;bx.beginPath();bx.arc(t[0],t[1],own?8:6,0,6.28);bx.fill()}
  if(NV>=-1&&NV!==-1){const y=NV<0?540:NV;bx.fillStyle='rgba(255,240,170,.55)';bx.fillRect(0,y-10,BW,50);bx.fillStyle='#fff';bx.fillRect(0,y,BW,6)}
