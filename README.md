@@ -49,3 +49,9 @@ Host and controller share `battle-renderer.js`: seven enemy silhouettes, shields
 The host sends bounded visual updates at the existing 8 Hz rate; simulation, damage and purchases remain host-authoritative. Older running hosts remain compatible, but need a refresh between games to send the new beam, particle and aiming data. Refresh the phone to load the new renderer. The regression fixture includes synthetic rich effects and is not proof of real-device network latency.
 
 The battle-first controller reserves the remaining viewport for the canvas and keeps upgrades collapsed initially. The station camera adapts to the available screen shape without stretching the artwork. Full overview preserves the complete battlefield aspect ratio; the closer station view fills a portrait screen.
+
+### Inactivity and host removal
+
+A player with all six turret slots at level 5 receives five real minutes since their last control interaction before removal, including a one-minute warning. Connection heartbeats do not reset activity; tapping a controller or using a gameplay control does. The five-minute grace also replaces short disconnect cleanup for maxed players. Other players retain the existing three-inactive-round / disconnected cleanup rules.
+
+On the host, **Players / kick** lists players by name and station. Select one and choose **Kick selected player**, then confirm. Only that player and their turrets are removed; this is a kick, not a ban. The feature is local to the host controls and accepts no remote kick command. `tests/host-admin.html` provides disposable synthetic players for UI verification.

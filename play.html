@@ -246,6 +246,9 @@ setInterval(()=>{
  send({t:'hb'});
  if(snap&&Date.now()-lastSnap>4000){$('chip').className='off';$('chip').textContent='host offline';send({t:'hello'})}
 },2000);
+let lastInteraction=0;
+function reportActivity(e){if(!e.isTrusted||!joined)return;const now=Date.now();if(now-lastInteraction<1000)return;lastInteraction=now;send({t:'active'})}
+document.addEventListener('pointerdown',reportActivity,{passive:true});document.addEventListener('keydown',reportActivity);
 addEventListener('pagehide',()=>{if(joined&&net)send({t:'bye'})});
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(room&&ls.get('sb_name')&&qs.get('room')===null&&ls.get('sb_proom')===room){/* returning player: stay on join screen until they tap */}

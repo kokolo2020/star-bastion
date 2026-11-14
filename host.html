@@ -15,7 +15,8 @@ canvas{display:block}
 </head>
 <body>
 <div id="wrap"><canvas id="c"></canvas></div>
-<nav class="host-tools" aria-label="Host controls"><button class="primary" id="hostStart" disabled>Waiting for players</button><button id="hostQR">Join QR</button><button id="hostFull">Full screen</button><select id="hostRegion" aria-label="Space region"><option value="">Auto · every 5 waves</option><option value="aurora">Aurora Reach</option><option value="ember">Ember Nebula</option><option value="glacial">Glacial Drift</option><option value="belt">Shattered Belt</option><option value="verdant">Verdant Rift</option><option value="horizon">Eventide Horizon</option></select></nav>
+<nav class="host-tools" aria-label="Host controls"><button class="primary" id="hostStart" disabled>Waiting for players</button><button id="hostQR">Join QR</button><button id="hostFull">Full screen</button><button id="hostPlayers" aria-expanded="false">Players / kick</button><select id="hostRegion" aria-label="Space region"><option value="">Auto · every 5 waves</option><option value="aurora">Aurora Reach</option><option value="ember">Ember Nebula</option><option value="glacial">Glacial Drift</option><option value="belt">Shattered Belt</option><option value="verdant">Verdant Rift</option><option value="horizon">Eventide Horizon</option></select></nav>
+<section id="playerAdmin" hidden aria-label="Player administration"><strong>PLAYER ADMIN</strong><p>Kick removes the player and their turrets. They may rejoin.</p><select id="adminPlayer" aria-label="Player to kick"></select><button id="adminKick">Kick selected player</button><button id="adminClose">Close</button><div id="adminResult" role="status"></div></section>
 <script src="regions.js"></script>
 <script src="battle-renderer.js"></script>
 <script src="audio.js"></script>
@@ -114,7 +115,7 @@ function say(s,col){feed.push({s,t:6,col:col||'#c9d4ff'});if(feed.length>5)feed.
 function newRound(){
  Audio.setScene('prep');
  G=newG();remoteBeams=[];enemies=[];bullets=[];beams=[];parts=[];floats=[];towers=[];queue=[];nova=null;banner=null;flashW=0;shake=0;hurt=0;
- for(const id in players){const p=players[id];p.en=160;p.rd=false;p.kills=0;p.sl=Array(NSL).fill(null)}
+ for(const id in players){const p=players[id];p.en=160;p.rd=false;p.kills=0;p.sl=Array(NSL).fill(null);p.lastActive=Date.now();p.idle=0;p.acted=false;p.idleWarned=false}
  state='prep';prepT=45;startIn=null;
 }
 function slotXY(s,i){return{x:s*SWD+(SWD-120)/2+20+(i%3)*40,y:WALL+78+Math.floor(i/3)*56}}
@@ -144,13 +145,31 @@ function buildWave(w){
  if(w%5===0){const nb=1+Math.floor(n/4);for(let i=0;i<nb;i++)list.splice(Math.floor(list.length/3)+i*3,0,'boss')}
  return list;
 }
+const MAXED_IDLE_MS=5*60*1000;
+function allMaxed(p){return p.s>=0&&p.sl.length===NSL&&p.sl.every(t=>t&&t.l>=5)}
+function removePlayer(id,reason){
+ const p=players[id];if(!p)return false;
+ towers=towers.filter(t=>t.o!==id);delete votes[id];delete players[id];snapDirty=true;
+ say(p.nm+' removed ('+reason+')','#8a97c8');if(net)net.send({t:'toast',to:id,m:'Removed '+(reason==='admin'?'by the host.':'for inactivity.')+' Rejoin to play.'});return true;
+}
 function idleCheck(){
  for(const id of Object.keys(players)){
   const p=players[id];
+  if(allMaxed(p)){p.idle=0;p.acted=false;continue}
   if(p.acted){p.idle=0;p.acted=false;continue}
   p.idle=(p.idle||0)+1;
-  if(p.idle>=3){towers=towers.filter(t=>t.o!==id);delete players[id];say(p.nm+' removed (inactive)','#8a97c8');if(net)net.send({t:'toast',to:id,m:'Removed for inactivity. Rejoin to play.'})}
+  if(p.idle>=3)removePlayer(id,'inactive');
   else if(p.idle===2&&net)net.send({t:'toast',to:id,m:'Inactive: tap something or you will be removed next round'});
+ }
+}
+function checkInactivity(now){
+ for(const id of Object.keys(players)){
+  const p=players[id];
+  if(allMaxed(p)){
+   const idle=now-(p.lastActive||p.seen);
+   if(idle>=MAXED_IDLE_MS){removePlayer(id,'inactive');continue}
+   if(idle>=MAXED_IDLE_MS-60000&&!p.idleWarned){p.idleWarned=true;toast(p,'Inactive: tap a control within 60 seconds to keep your station.')}
+  }else if(now-p.seen>90000||(p.bye&&now-p.bye>30000))removePlayer(id,'disconnected');
  }
 }
 function startWave(){
@@ -318,15 +337,16 @@ function onMsg(m){
   const nm=String(m.nm||'Player').replace(/[^\w \-.]/g,'').trim().slice(0,12)||'Player';
   if(!p){
    if(Object.keys(players).length>=40){toast({id:m.id},'Room is full');return}
-   p={id:m.id,nm,s:-1,en:160,rd:false,seen:Date.now(),kills:0,pts:0,sl:Array(NSL).fill(null)};players[m.id]=p;say(nm+' joined','#8aa8ff');
+   p={id:m.id,nm,s:-1,en:160,rd:false,seen:Date.now(),lastActive:Date.now(),kills:0,pts:0,sl:Array(NSL).fill(null)};players[m.id]=p;say(nm+' joined','#8aa8ff');
   }else{p.nm=nm}
   p.seen=Date.now();pushSnap();return;
  }
  if(!p)return;
  p.seen=Date.now();if(m.t!=='bye')p.bye=0;
- if(['claim','build','up','sell','nova','vote','ready'].includes(m.t))p.acted=true;
+ if(['active','claim','build','up','sell','nova','vote','ready'].includes(m.t)){p.acted=true;p.lastActive=Date.now();p.idleWarned=false}
  let err=null;
  switch(m.t){
+  case'active':return;
   case'hb':return;
   case'bye':p.bye=Date.now();return;
   case'claim':{
@@ -379,7 +399,7 @@ function update(dt){
  updateNova(dt);
  /* drop long-gone players */
  const now=Date.now();
- for(const id in players){const p=players[id];if(now-p.seen>90000||(p.bye&&now-p.bye>30000)){towers=towers.filter(t=>t.o!==id);delete players[id];snapDirty=true}}
+ checkInactivity(now);
  snapT-=dt;if(snapT<=0){snapT=.25;snapDirty=true}
  if(state==='prep'){
   const act=stationed();
@@ -649,7 +669,7 @@ cv.addEventListener('click',e=>{
  if(state==='prep'&&G.wave===0&&fy/FH>.55&&fy/FH<.8)cfgPrompt();
 });
 addEventListener('keydown',e=>{
- if(e.target.closest('input,textarea,button,summary'))return;
+ if(e.target.closest('input,textarea,button,summary,select,option'))return;
  Audio.unlock();const k=e.key.toLowerCase();
  if(k===' '||k==='enter'){e.preventDefault();if(state==='prep'&&stationed().length)startWave();else if(state==='cards')resolveVotes();else if(state==='over'){newRound();pushSnap()}}
  else if(k==='n'){const r=useNova(null);if(r)say(r,'#ffb06a')}
@@ -667,6 +687,22 @@ addEventListener('keydown',e=>{
 });
 
 document.getElementById('hostRegion').onchange=e=>{regionOverride=Regions.byId(e.target.value).id;if(!e.target.value)regionOverride='';pushSnap()};
+const adminPanel=document.getElementById('playerAdmin'),adminSelect=document.getElementById('adminPlayer');
+function renderAdmin(){
+ const list=Object.values(players),selected=adminSelect.value;
+ const markup=list.map(p=>'<option value="'+encodeURIComponent(p.id)+'">'+p.nm+' · '+(p.s>=0?'Station '+(p.s+1):'Lobby')+(allMaxed(p)?' · MAX':'')+'</option>').join('');
+ if(adminSelect.innerHTML!==markup){adminSelect.innerHTML=markup;if(list.some(p=>encodeURIComponent(p.id)===selected))adminSelect.value=selected}
+ document.getElementById('adminKick').disabled=!list.length;
+}
+function toggleAdmin(open){adminPanel.hidden=!open;document.getElementById('hostPlayers').setAttribute('aria-expanded',String(open));if(open)renderAdmin()}
+document.getElementById('hostPlayers').onclick=()=>toggleAdmin(adminPanel.hidden);
+document.getElementById('adminClose').onclick=()=>toggleAdmin(false);
+document.getElementById('adminKick').onclick=()=>{
+ const id=decodeURIComponent(adminSelect.value||''),p=players[id];if(!p)return;
+ if(!confirm('Kick '+p.nm+' and remove their turrets?'))return;
+ removePlayer(id,'admin');document.getElementById('adminResult').textContent=p.nm+' was kicked.';pushSnap();renderAdmin();
+};
+setInterval(()=>{if(!adminPanel.hidden)renderAdmin()},500);
 const startButton=document.getElementById('hostStart');
 startButton.onclick=()=>{Audio.unlock();if(state==='prep'&&stationed().length)startWave()};
 document.getElementById('hostQR').onclick=()=>{Audio.unlock();qrBig=!qrBig};
@@ -676,7 +712,7 @@ newRound();
 net=window.SBNet.open(ROOM,onMsg,(s,d)=>{netStatus=s;netDetail=d||'';if(s==='online'||s==='local')pushSnap()});
 netMode=net.mode;
 makeQR();
-window.__host={sendFx,onMsg,update,draw,sendSnap,snapshot,get state(){return state},get G(){return G},players,get enemies(){return enemies},get towers(){return towers},startWave,newRound,get net(){return net},ROOM};
+window.__host={allMaxed,checkInactivity,idleCheck,sendFx,onMsg,update,draw,sendSnap,snapshot,get state(){return state},get G(){return G},players,get enemies(){return enemies},get towers(){return towers},startWave,newRound,get net(){return net},ROOM};
 requestAnimationFrame(frame);
 })();
 </script>
