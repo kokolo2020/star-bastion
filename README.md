@@ -55,3 +55,7 @@ The battle-first controller reserves the remaining viewport for the canvas and k
 A player with all six turret slots at level 5 receives five real minutes since their last control interaction before removal, including a one-minute warning. Connection heartbeats do not reset activity; tapping a controller or using a gameplay control does. The five-minute grace also replaces short disconnect cleanup for maxed players. Other players retain the existing three-inactive-round / disconnected cleanup rules.
 
 On the host, **Players / kick** lists players by name and station. Select one and choose **Kick selected player**, then confirm. Only that player and their turrets are removed; this is a kick, not a ban. The feature is local to the host controls and accepts no remote kick command. `tests/host-admin.html` provides disposable synthetic players for UI verification.
+
+### Gentle multiplayer difficulty
+
+Each extra stationed player adds 8% to the solo enemy budget, capped at 60% extra. Spawn pacing increases by 2.5% per extra player, capped at 20%; enemy health, damage and solo wave progression are unchanged. Boss waves keep one boss at every party size. Party size is captured when a wave starts, so mid-wave joins do not suddenly accelerate spawns. Lobby spectators do not count.

@@ -102,7 +102,7 @@ function makeQR(){
 }
 
 /* ---------- state ---------- */
-let remoteBeams=[];
+let remoteBeams=[],wavePartySize=1;
 let state='prep',G,players={},enemies=[],bullets=[],beams=[],parts=[],floats=[],towers=[],queue=[],feed=[];
 let qrBig=false,eid=0,lastFx=0,fxHad=false,spawnT=0,T=0,shake=0,hurt=0,banner=null,waveTotal=0,nova=null,flashW=0,prepT=45,startIn=null,voteT=0,votes={},choices=[],overT=0,snapT=0,snapSeq=0,lastResult='';
 let best=0;try{best=+localStorage.getItem('sb_best')||0}catch(e){}
@@ -114,7 +114,7 @@ function owners(){const o=Array(NS).fill(null);for(const id in players){const p=
 function say(s,col){feed.push({s,t:6,col:col||'#c9d4ff'});if(feed.length>5)feed.shift()}
 function newRound(){
  Audio.setScene('prep');
- G=newG();remoteBeams=[];enemies=[];bullets=[];beams=[];parts=[];floats=[];towers=[];queue=[];nova=null;banner=null;flashW=0;shake=0;hurt=0;
+ G=newG();remoteBeams=[];wavePartySize=1;enemies=[];bullets=[];beams=[];parts=[];floats=[];towers=[];queue=[];nova=null;banner=null;flashW=0;shake=0;hurt=0;
  for(const id in players){const p=players[id];p.en=160;p.rd=false;p.kills=0;p.sl=Array(NSL).fill(null);p.lastActive=Date.now();p.idle=0;p.acted=false;p.idleWarned=false}
  state='prep';prepT=45;startIn=null;
 }
@@ -128,9 +128,13 @@ function light(h,t){const c=rgb(h);return'rgb('+Math.round(c[0]+(255-c[0])*t)+',
 
 /* ---------- waves ---------- */
 function hpMul(w){return Math.pow(1.1,w-1)*(1+.1*(w-1))}
-function buildWave(w){
- const n=Math.max(1,stationed().length);
- const list=[];let budget=(10+w*4.5)*(.65+.55*(n-1));
+function partyDifficulty(count){
+ const extra=Math.max(0,Math.min(MAXP,count)-1);
+ return{budget:.65*(1+Math.min(.60,extra*.08)),pace:1+Math.min(.20,extra*.025)};
+}
+function spawnInterval(w,count){return Math.max(.12,(1-w*.025)/partyDifficulty(count).pace)}
+function buildWave(w,count=stationed().length){
+ const list=[];let budget=(10+w*4.5)*partyDifficulty(count).budget;
  const pool=[['scout',1,Math.max(.4,3-w*.15)],['grunt',2,2]];
  if(w>=3)pool.push(['swarm',.5,2]);
  if(w>=4)pool.push(['shield',3,1.2+w*.05]);
@@ -142,7 +146,7 @@ function buildWave(w){
   list.push(pick[0]);budget-=pick[1];
   if(pick[0]==='swarm'){for(let i=0;i<3;i++)list.push('swarm')}
  }
- if(w%5===0){const nb=1+Math.floor(n/4);for(let i=0;i<nb;i++)list.splice(Math.floor(list.length/3)+i*3,0,'boss')}
+ if(w%5===0)list.splice(Math.floor(list.length/3),0,'boss');
  return list;
 }
 const MAXED_IDLE_MS=5*60*1000;
@@ -175,7 +179,7 @@ function checkInactivity(now){
 function startWave(){
  Audio.setScene('wave',(G.wave+1)%5===0);Audio.fx((G.wave+1)%5===0?'boss':'upgrade');
  if(G.wave>0)idleCheck();
- G.wave++;queue=buildWave(G.wave);waveTotal=queue.length;spawnT=1.4;state='wave';startIn=null;
+ G.wave++;wavePartySize=Math.max(1,stationed().length);queue=buildWave(G.wave,wavePartySize);waveTotal=queue.length;spawnT=1.4;state='wave';startIn=null;
  for(const id in players)players[id].rd=false;
  const boss=G.wave%5===0;
  banner=boss?{t:3,txt:'⚠ WARNING ⚠',sub:'BOSS INCOMING',col:'#ff3050',boss:1}:{t:2,txt:'WAVE '+G.wave,sub:(G.wave-1)%5===0?'ENTERING '+currentRegion().name.toUpperCase():'',col:currentRegion().accent};
@@ -415,7 +419,7 @@ function update(dt){
  }
  if(state==='over'){overT-=dt;if(overT<=0){newRound();pushSnap()}return}
  if(state!=='wave')return;
- if(queue.length){spawnT-=dt;if(spawnT<=0){const ty=queue.shift();spawn(ty);spawnT=ty==='swarm'?.1:Math.max(.12,(1-G.wave*.025)/Math.max(1,stationed().length*.7))}}
+ if(queue.length){spawnT-=dt;if(spawnT<=0){const ty=queue.shift();spawn(ty);spawnT=ty==='swarm'?.1:spawnInterval(G.wave,wavePartySize)}}
  for(const e of enemies){
   if(e.hp<=0)continue;
   if(e.st>0){e.st-=dt;if(e.st<=0)e.sa=0}
@@ -712,7 +716,7 @@ newRound();
 net=window.SBNet.open(ROOM,onMsg,(s,d)=>{netStatus=s;netDetail=d||'';if(s==='online'||s==='local')pushSnap()});
 netMode=net.mode;
 makeQR();
-window.__host={allMaxed,checkInactivity,idleCheck,sendFx,onMsg,update,draw,sendSnap,snapshot,get state(){return state},get G(){return G},players,get enemies(){return enemies},get towers(){return towers},startWave,newRound,get net(){return net},ROOM};
+window.__host={partyDifficulty,spawnInterval,buildWave,get wavePartySize(){return wavePartySize},allMaxed,checkInactivity,idleCheck,sendFx,onMsg,update,draw,sendSnap,snapshot,get state(){return state},get G(){return G},players,get enemies(){return enemies},get towers(){return towers},startWave,newRound,get net(){return net},ROOM};
 requestAnimationFrame(frame);
 })();
 </script>
