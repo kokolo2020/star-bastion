@@ -75,7 +75,7 @@ button:disabled{opacity:.4}
  <div class="row"><div class="big" id="en">⚡0</div><div style="flex:1;text-align:center;color:#8a97c8" id="wv">WAVE 0</div><div id="stn" style="font-weight:800"></div></div>
  <div class="row" style="margin-top:8px"><span style="font-size:11px;color:#8a97c8;width:50px">FORT</span><div class="bar"><i id="hpI" style="background:#5dff7a"></i><b id="hpT"></b></div></div>
  <div class="row" style="margin-top:6px"><span style="font-size:11px;color:#8a97c8;width:50px">NOVA</span><div class="bar"><i id="chI" style="background:#ff9a3d"></i><b id="chT"></b></div></div>
- <div id="bfw"><canvas id="bf" width="640" height="328"></canvas></div>
+ <div class="sector-strip"><span>LIVE BATTLEFIELD</span><strong id="sectorName">Aurora Reach</strong></div><div id="bfw"><canvas id="bf" width="640" height="328"></canvas></div>
  <div id="slots"></div>
  <div id="info" style="text-align:center;color:#c9d4ff;min-height:22px"></div>
  <button id="rdy" class="sec" style="margin-top:8px;display:none">READY</button>
@@ -94,14 +94,17 @@ button:disabled{opacity:.4}
  <div class="sub" style="margin-top:20px">A new round starts shortly on the big screen.</div>
 </div>
 
-<div id="sheet"></div>
+<div id="sheet" inert aria-hidden="true"></div>
 
+<script src="regions.js"></script>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="net.js"></script>
 <script>
 (()=>{
 'use strict';
+const Regions=window.SpaceRegions;
+const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
 const SCOL=['#35e6ff','#ff5de0','#5dff7a','#ffa63d','#8aa8ff','#ffe03d','#ff6b6b','#b07aff','#4ee0c0','#e8eeff'];
 const TY=[{n:'PULSE',c:50,col:'#35e6ff',d:'Fast, cheap all-rounder'},{n:'CANNON',c:100,col:'#ffa63d',d:'Slow shells, splash damage'},{n:'LASER',c:140,col:'#5dff7a',d:'Constant beam, never misses'},{n:'FROST',c:90,col:'#8aa8ff',d:'Slows enemies down'},{n:'RAIL',c:200,col:'#ff5de0',d:'Huge piercing shot'}];
 const IMG=TY.map((y,i)=>{const im=new Image();im.onload=()=>{im._ok=1;try{render()}catch(e){}};im.src='img/tower'+i+'.png';return im});
@@ -126,7 +129,7 @@ let room=(qs.get('room')||ls.get('sb_proom')||'').toUpperCase().replace(/[^A-Z0-
 $('nm').value=ls.get('sb_name')||'';$('rm').value=room;
 $('dg').href='diag.html'+location.hash;
 let net=null,snap=null,lastSnap=0,joined=false,sheetSlot=-1,myName='';
-const show=n=>{document.querySelectorAll('.scr').forEach(e=>e.classList.toggle('on',e.id==='s-'+n))};
+const show=n=>{if(n!=='play')closeSheet();document.querySelectorAll('.scr').forEach(e=>e.classList.toggle('on',e.id==='s-'+n))};
 function msg(s){const m=$('msg');m.textContent=s;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',1800);if(navigator.vibrate)navigator.vibrate(60)}
 function send(o){if(net){o.id=id;net.send(o)}}
 function setChip(s,d){const c=$('chip');c.className=s==='online'?'on':s==='local'?'loc':'off';const cf=window.SBNet.getCfg();const dbg='';c.textContent=dbg+' '+(s==='online'?'online':s==='local'?'local test (no keys)':s==='error'?'no connection ['+(d||'')+']':'connecting... '+(d||''))}
@@ -171,6 +174,7 @@ function renderPick(){
  $('grid6').querySelectorAll('.st').forEach(e=>e.onclick=()=>{send({t:'claim',s:+e.dataset.s});if(navigator.vibrate)navigator.vibrate(30)});
 }
 function renderPlay(p){
+ const sector=Regions.byId(snap.region||Regions.forWave(snap.w).id);$('sectorName').textContent=sector.name;$('sectorName').style.color=sector.accent;
  $('en').textContent='⚡'+p.en;
  $('wv').textContent=snap.st==='prep'?'PREP · next wave '+(snap.w+1)+(snap.tm!=null?' · '+snap.tm+'s':''):'WAVE '+snap.w+' · '+snap.ne+' left';
  $('stn').textContent='ST '+(p.s+1);$('stn').style.color=SCOL[p.s];
@@ -207,14 +211,14 @@ function openSheet(i,keep){
   TY.forEach((y,k)=>{const c=Math.round(y.c*(1-(snap.ds||0)));h+='<div role="button" tabindex="0" class="opt'+(p.en<c?' no':'')+'" style="border-color:'+y.col+';color:'+y.col+'" data-a="b'+k+'"><span class="l">'+ICON(k)+'<span>'+y.n+'<div class="d">'+y.d+'</div></span></span><span>⚡'+c+'</span></div>'});
  }
  h+='<div role="button" tabindex="0" class="opt" style="border-color:#3a4a8a;justify-content:center" data-a="x">Close</div>';
- sh.innerHTML=h;sh.classList.add('on');
+ sh.innerHTML=h;sh.inert=false;sh.setAttribute('aria-hidden','false');sh.classList.add('on');
  sh.querySelectorAll('.opt').forEach(e=>e.onclick=()=>{
   const a=e.dataset.a;
   if(a==='up')send({t:'up',i});else if(a==='sell')send({t:'sell',i});else if(a[0]==='b')send({t:'build',i,k:+a.slice(1)});
   if(navigator.vibrate)navigator.vibrate(25);closeSheet();
  });
 }
-function closeSheet(){sheetSlot=-1;$('sheet').classList.remove('on')}
+function closeSheet(){sheetSlot=-1;const sh=$('sheet');sh.classList.remove('on');sh.inert=true;sh.setAttribute('aria-hidden','true')}
 function renderCards(){
  closeSheet();
  $('cdSub').textContent='Vote for a team upgrade · '+snap.tm+'s';
@@ -261,8 +265,7 @@ function drawBF(){
  if(now-lastFxT>1500){EM={};BL=[];NV=-1}
  const p=me(),NS=snap.os.length||10,SW=BW/NS;
  bx.setTransform(K,0,0,K,0,-TOP*K);
- const g=bx.createLinearGradient(0,TOP,0,TOP+BH);g.addColorStop(0,'#070516');g.addColorStop(.7,'#0b1033');g.addColorStop(1,'#0a1024');
- bx.fillStyle=g;bx.fillRect(0,TOP,BW,BH);
+ Regions.draw(bx,BW,720,snap.region||Regions.forWave(snap.w).id,now/1000,{quality:.5,reducedMotion});
  if(p&&p.s>=0){bx.fillStyle=SCOL[p.s]+'22';bx.fillRect(p.s*SW,TOP,SW,BH)}
  bx.strokeStyle='rgba(90,130,255,.12)';bx.lineWidth=2;for(let s=1;s<NS;s++){bx.beginPath();bx.moveTo(s*SW,TOP);bx.lineTo(s*SW,TOP+BH);bx.stroke()}
  bx.strokeStyle='#35e6ff';bx.lineWidth=4;bx.beginPath();bx.moveTo(0,540);bx.lineTo(BW,540);bx.stroke();

@@ -15,7 +15,8 @@ canvas{display:block}
 </head>
 <body>
 <div id="wrap"><canvas id="c"></canvas></div>
-<nav class="host-tools" aria-label="Host controls"><button class="primary" id="hostStart" disabled>Waiting for players</button><button id="hostQR">Join QR</button><button id="hostFull">Full screen</button></nav>
+<nav class="host-tools" aria-label="Host controls"><button class="primary" id="hostStart" disabled>Waiting for players</button><button id="hostQR">Join QR</button><button id="hostFull">Full screen</button><select id="hostRegion" aria-label="Space region"><option value="">Auto · every 5 waves</option><option value="aurora">Aurora Reach</option><option value="ember">Ember Nebula</option><option value="glacial">Glacial Drift</option><option value="belt">Shattered Belt</option><option value="verdant">Verdant Rift</option><option value="horizon">Eventide Horizon</option></select></nav>
+<script src="regions.js"></script>
 <script src="audio.js"></script>
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -25,7 +26,10 @@ canvas{display:block}
 (()=>{
 'use strict';
 const FW=1280,FH=720,TOPY=64,WALL=540,NS=10,NSL=6,SWD=FW/NS,RS=1.45,MAXP=NS;
-const Audio=window.SBAudio;
+const Audio=window.SBAudio,Regions=window.SpaceRegions;
+let regionOverride='';
+const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
+function currentRegion(){return regionOverride?Regions.byId(regionOverride):Regions.forWave(state==='prep'&&G.wave>0?G.wave+1:Math.max(1,G.wave))}
 const SCOL=['#35e6ff','#ff5de0','#5dff7a','#ffa63d','#8aa8ff','#ffe03d','#ff6b6b','#b07aff','#4ee0c0','#e8eeff'];
 const TY=[
  {n:'PULSE', c:50, d:9,  r:.26,rg:175,col:'#35e6ff'},
@@ -153,7 +157,7 @@ function startWave(){
  G.wave++;queue=buildWave(G.wave);waveTotal=queue.length;spawnT=1.4;state='wave';startIn=null;
  for(const id in players)players[id].rd=false;
  const boss=G.wave%5===0;
- banner=boss?{t:3,txt:'⚠ WARNING ⚠',sub:'BOSS INCOMING',col:'#ff3050',boss:1}:{t:2,txt:'WAVE '+G.wave,sub:'',col:'#35e6ff'};
+ banner=boss?{t:3,txt:'⚠ WARNING ⚠',sub:'BOSS INCOMING',col:'#ff3050',boss:1}:{t:2,txt:'WAVE '+G.wave,sub:(G.wave-1)%5===0?'ENTERING '+currentRegion().name.toUpperCase():'',col:currentRegion().accent};
  pushSnap();
 }
 function spawnX(r){
@@ -345,7 +349,7 @@ function onMsg(m){
 function snapshot(){
  const own=owners();
  const tally=choices.map(()=>0);for(const id in votes)tally[votes[id]]++;
- return{t:'snap',n:++snapSeq,st:state,w:G.wave,hp:Math.ceil(G.hp),mh:G.maxHp,ch:Math.floor(G.charge),
+ return{t:'snap',n:++snapSeq,st:state,w:G.wave,region:currentRegion().id,hp:Math.ceil(G.hp),mh:G.maxHp,ch:Math.floor(G.charge),
   tm:state==='prep'?Math.max(0,Math.ceil(prepT)):state==='cards'?Math.max(0,Math.ceil(voteT)):null,
   pl:Object.values(players).map(p=>({id:p.id,nm:p.nm,s:p.s,en:Math.floor(p.en),rd:p.rd?1:0,k:p.kills,
    aw:(Date.now()-p.seen>20000)?1:0,sl:p.sl.map(t=>t?[t.k,t.l,upCost(t)]:0)})),
@@ -439,21 +443,12 @@ function glow(on){ctx.globalCompositeOperation=on?'lighter':'source-over'}
 function radial(x,y,r,col,a){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,rgba(col,a));g.addColorStop(1,rgba(col,0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,6.28);ctx.fill()}
 const debris=Array.from({length:24},(_,i)=>({x:(i*173+47)%FW,y:TOPY+((i*97+21)%(WALL-TOPY)),r:3+(i%5)*2}));
 function drawSpace(){
- const g=ctx.createLinearGradient(0,0,0,FH);g.addColorStop(0,'#070516');g.addColorStop(.6,'#0b1033');g.addColorStop(1,'#060a1c');
- ctx.fillStyle=g;ctx.fillRect(0,0,FW,FH);
- glow(true);
- [['#5a2bd6',.2,.25],['#1b6fd6',.75,.5],['#c0306a',.4,.8],['#17a6a6',.92,.1]].forEach((n,i)=>radial(FW*n[1]+Math.sin(T*.05+i*2)*40,FH*n[2]+Math.cos(T*.04+i)*30,FW*.34,n[0],.16));
- glow(false);
- const px=FW*.83,py=FH*.22,pr=98;
- const pg=ctx.createRadialGradient(px-pr*.35,py-pr*.35,pr*.1,px,py,pr);pg.addColorStop(0,'#7ab0ff');pg.addColorStop(.6,'#2a3f99');pg.addColorStop(1,'#0c1236');
- ctx.save();ctx.shadowColor='#706dff';ctx.shadowBlur=30;ctx.fillStyle=pg;ctx.beginPath();ctx.arc(px,py,pr,0,6.28);ctx.fill();ctx.restore();
- ctx.strokeStyle='rgba(160,200,255,.35)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(px,py,pr*1.6,pr*.35,-.35,0,6.28);ctx.stroke();
- for(const s of stars){ctx.globalAlpha=.35+.35*Math.sin(T*2+s.tw)+s.s*.12;ctx.fillStyle=s.s>2?'#fff2c0':'#bcd0ff';ctx.fillRect(s.x,s.y,s.s,s.s*(s.v>20?3:1))}
- ctx.globalAlpha=1;
+ Regions.draw(ctx,FW,FH,currentRegion().id,performance.now()/1000,{reducedMotion});
+ for(const s of stars){ctx.globalAlpha=.18+.22*Math.sin(T*2+s.tw)+s.s*.08;ctx.fillStyle=s.s>2?'#fff2c0':currentRegion().accent;ctx.fillRect(s.x,s.y,s.s,s.s*(s.v>20?3:1))}ctx.globalAlpha=1;
 }
 function drawGameBg(){
  ctx.fillStyle='rgba(3,7,20,.25)';ctx.fillRect(0,TOPY,FW,FH-TOPY);
- for(const d of debris){ctx.fillStyle='rgba(93,106,149,.16)';ctx.beginPath();ctx.moveTo(d.x-d.r,d.y);ctx.lineTo(d.x,d.y-d.r*.7);ctx.lineTo(d.x+d.r,d.y+d.r*.5);ctx.lineTo(d.x-d.r*.5,d.y+d.r);ctx.closePath();ctx.fill()}
+ for(const d of debris){ctx.fillStyle=currentRegion().accent+'15';ctx.beginPath();ctx.moveTo(d.x-d.r,d.y);ctx.lineTo(d.x,d.y-d.r*.7);ctx.lineTo(d.x+d.r,d.y+d.r*.5);ctx.lineTo(d.x-d.r*.5,d.y+d.r);ctx.closePath();ctx.fill()}
  ctx.lineWidth=1;ctx.strokeStyle='rgba(83,171,216,.045)';
  for(let x=0;x<FW;x+=64){ctx.beginPath();ctx.moveTo(x,TOPY);ctx.lineTo(x,WALL);ctx.stroke()}
  for(let y=TOPY+(T*12)%64;y<WALL;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(FW,y);ctx.stroke()}
@@ -596,7 +591,7 @@ function drawQR(x,y,m){
 function drawHud(){
  ctx.fillStyle='rgba(4,10,23,.94)';ctx.fillRect(0,0,FW,TOPY);ctx.strokeStyle='#4ac5e633';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,TOPY);ctx.lineTo(FW,TOPY);ctx.stroke();
  txt('STAR BASTION',18,22,21,'#f4f9ff','left','900');txt('WAVE '+String(G.wave).padStart(2,'0'),18,47,13,'#ffd16b','left','800');
- txt('CO-OP DEFENSE',182,23,10,'#7fc6e1','left','700');txt(stationed().length+' / '+MAXP+' CONNECTED',182,45,10,'#a3bbd7','left','700');
+ txt(currentRegion().name.toUpperCase(),182,23,9,currentRegion().accent,'left','700');txt(stationed().length+' / '+MAXP+' CONNECTED',182,45,10,'#a3bbd7','left','700');
  for(let i=1;i<=3;i++){const x=300+(i-1)*52,on=SPEED===i;ctx.fillStyle=on?'#ffd16b':'#17273e';rr(x,14,46,22,7);ctx.fill();txt(i+'×',x+23,25,12,on?'#172135':'#bed3e8','center','800')}
  const bx=470,bw=350,hp=Math.max(0,G.hp/G.maxHp),hc=hp>.4?'#61ecc0':'#ff5269';
  txt('FORTRESS INTEGRITY',bx,12,9,'#91acc8','left','700');ctx.fillStyle='#142239';rr(bx,22,bw,12,5);ctx.fill();if(hp>0){ctx.fillStyle=hc;rr(bx,22,Math.max(1,bw*hp),12,5);ctx.fill()}
@@ -607,7 +602,7 @@ function drawHud(){
 }
 function drawBanner(){
  if(!banner)return;
- const k=banner.t,tot=banner.boss?3:(banner.sub?1.8:2),a=Math.min(1,k*2.5,(tot-k)*4+.2);
+ const k=banner.t,tot=banner.boss?3:(banner.txt==='NOVA BURST'?1.8:2),a=Math.min(1,k*2.5,(tot-k)*4+.2);
  ctx.save();ctx.globalAlpha=Math.max(0,a);
  if(banner.boss){
   const f=.5+.5*Math.sin(T*14);
@@ -758,6 +753,7 @@ addEventListener('keydown',e=>{
  }
 });
 
+document.getElementById('hostRegion').onchange=e=>{regionOverride=Regions.byId(e.target.value).id;if(!e.target.value)regionOverride='';pushSnap()};
 const startButton=document.getElementById('hostStart');
 startButton.onclick=()=>{Audio.unlock();if(state==='prep'&&stationed().length)startWave()};
 document.getElementById('hostQR').onclick=()=>{Audio.unlock();qrBig=!qrBig};

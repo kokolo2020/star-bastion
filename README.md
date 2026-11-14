@@ -9,6 +9,12 @@ Multiplayer fortress defense for a livestream or big screen. Up to ten players s
 - Each player builds and upgrades six slots using five turret types: Pulse, Cannon, Laser, Frost and Rail. Ready-up starts a wave; the host can also launch it. Players vote for team upgrades between waves and share the NOVA charge.
 - Click **Join QR** (or Q) to enlarge the code. Full screen (or F) maximizes the battlefield. Keys 1–3 change speed; Space launches a prepared wave; N fires a charged NOVA.
 
+## Space regions
+
+Every five-wave block has a different space region, changing after the boss during the next preparation phase: **Aurora Reach** (1–5), **Ember Nebula** (6–10), **Glacial Drift** (11–15), **Shattered Belt** (16–20), **Verdant Rift** (21–25), **Eventide Horizon** (26–30). The cycle repeats from wave 31.
+
+Host and phone battlefield share the same region ID in the host snapshot. The host's **Space region** selector overrides only scenery, with **Auto · every 5 waves** restoring progression. Changes crossfade over 2.4 seconds; reduced-motion mode switches immediately. Planets, crystals and asteroids are decorative, with no collision or gameplay effects. Procedural artwork is cached instead of rebuilt each frame; phones use half-resolution backgrounds. No scenery downloads or API keys are required.
+
 ## Online multiplayer
 
 Realtime uses Supabase Broadcast, with no tables. On the host press **K** and enter the project's Supabase URL and public anon/publishable key. Only public client credentials belong here—never a service-role key or other secret. The existing QR configuration flow passes the public configuration to joining phones.
@@ -30,6 +36,6 @@ Serve the directory over HTTP, e.g. `python3 -m http.server 8977`. Open `host.ht
 node --test tests/*.cjs
 ```
 
-The ten tests cover station ownership, five weapons, energy costs, ready-up/NOVA, icon dimensions/transparency, JavaScript parsing and audio activation/scheduling/visibility. Browser QA additionally covers the phone build panel, synchronized gameplay and host sound toggles. Real device/Supabase latency and music listening should be checked before going live.
+The automated tests cover station ownership, five weapons, energy costs, ready-up/NOVA, icon dimensions/transparency, JavaScript parsing and audio activation/scheduling/visibility. Browser QA additionally covers the phone build panel, synchronized gameplay and host sound toggles. Real device/Supabase latency and music listening should be checked before going live.
 
 See `assets/art/ARTWORK.md` for asset sources and prompts.
