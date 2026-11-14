@@ -88,7 +88,7 @@ function makeQR(){
 
 /* ---------- state ---------- */
 let state='prep',G,players={},enemies=[],bullets=[],beams=[],parts=[],floats=[],towers=[],queue=[],feed=[];
-let spawnT=0,T=0,shake=0,hurt=0,banner=null,waveTotal=0,nova=null,flashW=0,prepT=45,startIn=null,voteT=0,votes={},choices=[],overT=0,snapT=0,snapSeq=0,lastResult='';
+let qrBig=false,spawnT=0,T=0,shake=0,hurt=0,banner=null,waveTotal=0,nova=null,flashW=0,prepT=45,startIn=null,voteT=0,votes={},choices=[],overT=0,snapT=0,snapSeq=0,lastResult='';
 let best=0;try{best=+localStorage.getItem('sb_best')||0}catch(e){}
 const stars=[];for(let i=0;i<150;i++){const l=Math.random();stars.push({x:Math.random()*FW,y:Math.random()*FH,s:l<.6?.8:l<.9?1.4:2.2,v:l<.6?5:l<.9?12:26,tw:Math.random()*6})}
 
@@ -128,7 +128,17 @@ function buildWave(w){
  if(w%5===0){const nb=1+Math.floor(n/4);for(let i=0;i<nb;i++)list.splice(Math.floor(list.length/3)+i*3,0,'boss')}
  return list;
 }
+function idleCheck(){
+ for(const id of Object.keys(players)){
+  const p=players[id];
+  if(p.acted){p.idle=0;p.acted=false;continue}
+  p.idle=(p.idle||0)+1;
+  if(p.idle>=3){towers=towers.filter(t=>t.o!==id);delete players[id];say(p.nm+' removed (inactive)','#8a97c8');if(net)net.send({t:'toast',to:id,m:'Removed for inactivity. Rejoin to play.'})}
+  else if(p.idle===2&&net)net.send({t:'toast',to:id,m:'Inactive: tap something or you will be removed next round'});
+ }
+}
 function startWave(){
+ if(G.wave>0)idleCheck();
  G.wave++;queue=buildWave(G.wave);waveTotal=queue.length;spawnT=1.4;state='wave';startIn=null;
  for(const id in players)players[id].rd=false;
  const boss=G.wave%5===0;
@@ -293,10 +303,12 @@ function onMsg(m){
   p.seen=Date.now();pushSnap();return;
  }
  if(!p)return;
- p.seen=Date.now();
+ p.seen=Date.now();if(m.t!=='bye')p.bye=0;
+ if(['claim','build','up','sell','nova','vote','ready'].includes(m.t))p.acted=true;
  let err=null;
  switch(m.t){
   case'hb':return;
+  case'bye':p.bye=Date.now();return;
   case'claim':{
    const s=m.s|0;if(!(s>=0&&s<NS)){err='Bad station';break}
    const o=owners()[s];if(o&&o!==p){err='Station taken';break}
@@ -323,7 +335,7 @@ function snapshot(){
  return{t:'snap',n:++snapSeq,st:state,w:G.wave,hp:Math.ceil(G.hp),mh:G.maxHp,ch:Math.floor(G.charge),
   tm:state==='prep'?Math.max(0,Math.ceil(prepT)):state==='cards'?Math.max(0,Math.ceil(voteT)):null,
   pl:Object.values(players).map(p=>({id:p.id,nm:p.nm,s:p.s,en:Math.floor(p.en),rd:p.rd?1:0,k:p.kills,
-   aw:(Date.now()-p.seen>45000)?1:0,sl:p.sl.map(t=>t?[t.k,t.l,upCost(t)]:0)})),
+   aw:(Date.now()-p.seen>20000)?1:0,sl:p.sl.map(t=>t?[t.k,t.l,upCost(t)]:0)})),
   os:own.map(p=>p?p.id:0),
   cd:state==='cards'?choices.map((c,i)=>({n:c.n,d:c.d,col:c.col,v:tally[i]})):null,
   best,kills:G.kills,ds:G.disc,res:lastResult,ne:enemies.length+queue.length};
@@ -346,7 +358,7 @@ function update(dt){
  updateNova(dt);
  /* drop long-gone players */
  const now=Date.now();
- for(const id in players){const p=players[id];if(now-p.seen>150000&&state!=='wave'){towers=towers.filter(t=>t.o!==id);delete players[id];snapDirty=true}}
+ for(const id in players){const p=players[id];if(now-p.seen>90000||(p.bye&&now-p.bye>30000)){towers=towers.filter(t=>t.o!==id);delete players[id];snapDirty=true}}
  snapT-=dt;if(snapT<=0){snapT=.25;snapDirty=true}
  if(state==='prep'){
   const act=stationed();
@@ -444,7 +456,7 @@ function drawStations(){
   ctx.fillStyle='rgba(8,12,34,.7)';rr(x0+5,WALL+8,SWD-10,FH-WALL-14,10);ctx.fill();
   ctx.strokeStyle=rgba(col,p?.8:.3);ctx.lineWidth=p?2:1;rr(x0+5,WALL+8,SWD-10,FH-WALL-14,10);ctx.stroke();
   if(p){glow(true);radial(x0+SWD/2,WALL+10,60,col,.35);glow(false)}
-  txt(p?p.nm+(Date.now()-p.seen>45000?'*':''):'OPEN '+(s+1),x0+10,WALL+24,14,p?col:'#566091','left','800',p?6:0);
+  txt(p?p.nm+(Date.now()-p.seen>20000?'*':''):'OPEN '+(s+1),x0+10,WALL+24,14,p?col:'#566091','left','800',p?6:0);
   if(p)txt('\u26A1'+Math.floor(p.en)+'  \u2620'+p.kills,x0+10,WALL+43,11,'#ffe03d','left','700');
   for(let i=0;i<NSL;i++){
    const xy=slotXY(s,i);
@@ -481,6 +493,7 @@ function drawEnemy(e,lod){
  if(r>=10&&e.hp<e.mhp){const w=r*2;ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(-r,-r-9,w,3.5);ctx.fillStyle=e.k==='boss'?'#ff3050':'#5dff7a';ctx.fillRect(-r,-r-9,w*Math.max(0,e.hp/e.mhp),3.5)}
  ctx.restore();
 }
+const TIMG=TY.map((y,i)=>{const im=new Image();im.onload=()=>{im._ok=1};im.src='img/tower'+i+'.png';return im});
 function drawTower(t){
  const b=TY[t.k],p=players[t.o],sc=p&&p.s>=0?SCOL[p.s]:b.col;
  glow(true);radial(t.x,t.y,24+t.l*3,b.col,.10+t.l*.04);glow(false);
@@ -489,6 +502,7 @@ function drawTower(t){
  ctx.strokeStyle=rgba(sc,.9);ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,17,0,6.28);ctx.stroke();
  if(t.l>=5){ctx.save();ctx.rotate(T*1.5);ctx.setLineDash([5,5]);ctx.strokeStyle=rgba('#ffe03d',.85);ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,21,0,6.28);ctx.stroke();ctx.restore()}
  ctx.rotate(t.ang==null?-1.57:t.ang);
+ if(TIMG[t.k]._ok){ctx.rotate(1.57);ctx.drawImage(TIMG[t.k],-21,-21,42,42);ctx.restore();for(let i=0;i<t.l;i++){ctx.fillStyle='#ffe03d';ctx.fillRect(t.x-t.l*3.5+i*7,t.y-25,5,3)}return}
  ctx.fillStyle=light(b.col,.2);ctx.shadowColor=b.col;ctx.shadowBlur=9;
  const len=t.k===4?22:t.k===1?16:14,wd=t.k===1?8:t.k===4?5:4;
  ctx.fillRect(0,-wd/2,len,wd);ctx.shadowBlur=0;
@@ -587,10 +601,10 @@ function drawFeed(){
  feed.forEach((f,i)=>{ctx.globalAlpha=Math.min(1,f.t);txt(f.s,16,TOPY+20+i*22,15,f.col,'left','700');ctx.globalAlpha=1});
 }
 function drawMiniJoin(){
- const s=92,x=FW-s-18,y=TOPY+16;
+ const s=150,x=FW-s-22,y=TOPY+12;
  drawQR(x,y,s,6);
- txt('JOIN',x+s/2,y+s+22,15,'#ffffff','center','800');
- txt(ROOM,x+s/2,y+s+44,22,'#ffe03d','center','800',8);
+ txt('SCAN TO JOIN  (tap = big)',x+s/2,y+s+24,12,'#ffffff','center','800');
+ txt(ROOM,x+s/2,y+s+48,24,'#ffe03d','center','800',8);
 }
 function drawPrep(){
  const act=stationed();
@@ -661,6 +675,7 @@ function draw(){
  if(state==='prep')drawPrep();
  if(state!=='over'&&!(state==='prep'&&G.wave===0))drawMiniJoin();
  drawBanner();
+ if(qrBig){ctx.fillStyle='rgba(3,5,16,.86)';ctx.fillRect(0,0,FW,FH);drawQR(FW/2-190,110,380,16);txt('ROOM '+ROOM,FW/2,560,56,'#ffe03d','center','800',16);txt('tap or press Q to close',FW/2,620,16,'#8a97c8','center','600')}
  if(hurt>0){const vg=ctx.createRadialGradient(FW/2,FH/2,FH*.3,FW/2,FH/2,FH*.9);vg.addColorStop(0,'rgba(255,30,60,0)');vg.addColorStop(1,'rgba(255,30,60,'+(hurt*.5)+')');ctx.fillStyle=vg;ctx.fillRect(0,0,FW,FH)}
  if(flashW>0){ctx.fillStyle='rgba(255,255,255,'+Math.min(1,flashW*.75)+')';ctx.fillRect(0,0,FW,FH)}
  if(state==='cards')drawCards();
@@ -669,12 +684,12 @@ function draw(){
 }
 
 /* ---------- loop ---------- */
-let last=0;
-function frame(ts){
- const dt=Math.min(.05,((ts-last)/1000)||0);last=ts;
- update(dt);sendSnap();draw();
- requestAnimationFrame(frame);
-}
+let lastT=Date.now(),ticker=false;
+function tick(){const n=Date.now(),dt=Math.min(.1,(n-lastT)/1000);lastT=n;update(dt);sendSnap()}
+try{const bl=new Blob(['setInterval(function(){postMessage(0)},50)'],{type:'text/javascript'});const w=new Worker(URL.createObjectURL(bl));w.onmessage=tick;ticker=true}catch(e){ticker=false}
+function frame(){if(!ticker)tick();draw();requestAnimationFrame(frame)}
+async function wl(){try{if(navigator.wakeLock)await navigator.wakeLock.request('screen')}catch(e){}}
+wl();addEventListener('visibilitychange',()=>{if(!document.hidden)wl()});
 function cfgPrompt(){
   const u=prompt('Supabase project URL (https://xxxx.supabase.co)',(window.SBNet.getCfg()||{}).u||'');
   if(u===null)return;
@@ -683,11 +698,17 @@ function cfgPrompt(){
   if(u&&kk)window.SBNet.setCfg(u.trim(),kk.trim());else window.SBNet.clearCfg();
   location.reload();
 }
-cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect();if(state==='prep'&&G.wave===0&&(e.clientY-r.top)/r.height>.55&&(e.clientY-r.top)/r.height<.8)cfgPrompt()});
+cv.addEventListener('click',e=>{
+ const r=cv.getBoundingClientRect(),fx=(e.clientX-r.left)/r.width*FW,fy=(e.clientY-r.top)/r.height*FH;
+ if(qrBig){qrBig=false;return}
+ if(fx>FW-190&&fy>TOPY&&fy<TOPY+230&&state!=='over'&&!(state==='prep'&&G.wave===0)){qrBig=true;return}
+ if(state==='prep'&&G.wave===0&&fy/FH>.55&&fy/FH<.8)cfgPrompt();
+});
 addEventListener('keydown',e=>{
  const k=e.key.toLowerCase();
  if(k===' '||k==='enter'){e.preventDefault();if(state==='prep'&&stationed().length)startWave();else if(state==='cards')resolveVotes();else if(state==='over'){newRound();pushSnap()}}
  else if(k==='n'){const r=useNova(null);if(r)say(r,'#ffb06a')}
+ else if(k==='q'){qrBig=!qrBig}
  else if(k==='f'){try{document.documentElement.requestFullscreen()}catch(err){}}
  else if(k==='k'){
   const u=prompt('Supabase project URL (https://xxxx.supabase.co)',(window.SBNet.getCfg()||{}).u||'');

@@ -33,7 +33,10 @@ button:disabled{opacity:.4}
 .bar i{display:block;height:100%;border-radius:9px;transition:width .3s}
 .bar b{position:absolute;inset:0;text-align:center;font-size:11px;line-height:18px;color:#06101f}
 #slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
-.sl{aspect-ratio:1;border-radius:14px;border:2px dashed #3a4a8a;background:#0d1530;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:13px;text-align:center}
+.sl{min-height:150px;border-radius:16px;border:2px dashed #3a4a8a;background:#0d1530;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:800;font-size:13px;text-align:center;padding:8px 2px}
+.sl svg,.sl img{width:62px;height:62px;filter:drop-shadow(0 0 7px currentColor);object-fit:contain}
+.pips{display:flex;gap:3px}.pips i{width:9px;height:4px;border-radius:2px;background:#ffe03d}.pips i.o{background:#ffffff22}
+.opt svg,.opt img{width:40px;height:40px;margin-right:10px;object-fit:contain}.opt .l{display:flex;align-items:center}.opt .d{font-size:11px;color:#8a97c8;font-weight:600}
 .sl.f{border-style:solid}
 .sl small{color:#ffe03d;font-size:11px}
 .sl .pl{font-size:26px;color:#3a4a8a}
@@ -96,7 +99,21 @@ button:disabled{opacity:.4}
 (()=>{
 'use strict';
 const SCOL=['#35e6ff','#ff5de0','#5dff7a','#ffa63d','#8aa8ff','#ffe03d','#ff6b6b','#b07aff','#4ee0c0','#e8eeff'];
-const TY=[{n:'PULSE',c:50,col:'#35e6ff'},{n:'CANNON',c:100,col:'#ffa63d'},{n:'LASER',c:140,col:'#5dff7a'},{n:'FROST',c:90,col:'#8aa8ff'},{n:'RAIL',c:200,col:'#ff5de0'}];
+const TY=[{n:'PULSE',c:50,col:'#35e6ff',d:'Fast, cheap all-rounder'},{n:'CANNON',c:100,col:'#ffa63d',d:'Slow shells, splash damage'},{n:'LASER',c:140,col:'#5dff7a',d:'Constant beam, never misses'},{n:'FROST',c:90,col:'#8aa8ff',d:'Slows enemies down'},{n:'RAIL',c:200,col:'#ff5de0',d:'Huge piercing shot'}];
+const IMG=TY.map((y,i)=>{const im=new Image();im.onload=()=>{im._ok=1;try{render()}catch(e){}};im.src='img/tower'+i+'.png';return im});
+function ICON(k,lv){
+ if(IMG[k]._ok)return '<img src="img/tower'+k+'.png" alt="">';
+ const c=TY[k].col,w=[7,13,3,9,5][k],len=[20,18,24,17,28][k];
+ let x='<svg viewBox="0 0 64 64" style="color:'+c+'"><circle cx="32" cy="32" r="27" fill="#0b1228" stroke="'+c+'" stroke-width="2.5"/><circle cx="32" cy="32" r="22" fill="none" stroke="'+c+'" stroke-opacity=".35" stroke-width="1"/>';
+ x+='<rect x="'+(32-w/2)+'" y="'+(32-len-4)+'" width="'+w+'" height="'+len+'" rx="2" fill="'+c+'"/>';
+ if(k===0)x+='<rect x="22" y="14" width="4" height="12" rx="2" fill="'+c+'"/><rect x="38" y="14" width="4" height="12" rx="2" fill="'+c+'"/>';
+ if(k===1)x+='<rect x="26" y="8" width="12" height="6" rx="2" fill="#fff" fill-opacity=".7"/>';
+ if(k===2)x+='<path d="M32 4 L36 12 L32 20 L28 12Z" fill="#fff"/>';
+ if(k===3)x+='<g stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M32 22v20M23 27l18 10M23 37l18-10"/></g>';
+ if(k===4)x+='<rect x="27" y="14" width="10" height="3" fill="#fff"/><rect x="27" y="22" width="10" height="3" fill="#fff"/>';
+ x+='<circle cx="32" cy="34" r="9" fill="'+c+'"/><circle cx="32" cy="34" r="4" fill="#fff"/></svg>';
+ return x;
+}
 const $=id=>document.getElementById(id);
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 let id=ls.get('sb_id');if(!id){id='p'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);ls.set('sb_id',id)}
@@ -108,7 +125,7 @@ let net=null,snap=null,lastSnap=0,joined=false,sheetSlot=-1,myName='';
 const show=n=>{document.querySelectorAll('.scr').forEach(e=>e.classList.toggle('on',e.id==='s-'+n))};
 function msg(s){const m=$('msg');m.textContent=s;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',1800);if(navigator.vibrate)navigator.vibrate(60)}
 function send(o){if(net){o.id=id;net.send(o)}}
-function setChip(s,d){const c=$('chip');c.className=s==='online'?'on':s==='local'?'loc':'off';const cf=window.SBNet.getCfg();const dbg=cf?' {'+cf.u.replace('https://','').slice(0,8)+' k'+cf.k.length+' '+cf.k.slice(0,6)+'}':'';c.textContent=dbg+' '+(s==='online'?'online':s==='local'?'local test (no keys)':s==='error'?'no connection ['+(d||'')+']':'connecting... '+(d||''))}
+function setChip(s,d){const c=$('chip');c.className=s==='online'?'on':s==='local'?'loc':'off';const cf=window.SBNet.getCfg();const dbg='';c.textContent=dbg+' '+(s==='online'?'online':s==='local'?'local test (no keys)':s==='error'?'no connection ['+(d||'')+']':'connecting... '+(d||''))}
 
 function connect(){
  if(net)return;
@@ -123,7 +140,7 @@ $('goJoin').onclick=()=>{
 function onMsg(m){
  if(!m)return;
  if(m.t==='snap'){snap=m;lastSnap=Date.now();render()}
- else if(m.t==='toast'&&m.to===id)msg(m.m);
+ else if(m.t==='toast'&&m.to===id){msg(m.m);if(/^Removed/.test(m.m)){joined=false;snap=null;show('join')}}
 }
 function me(){return snap&&snap.pl.find(p=>p.id===id)}
 function render(){
@@ -158,8 +175,9 @@ function renderPlay(p){
  let h='';
  for(let i=0;i<6;i++){
   const t=p.sl[i];
-  if(t)h+='<div class="sl f" data-i="'+i+'" style="border-color:'+TY[t[0]].col+';color:'+TY[t[0]].col+'">'+TY[t[0]].n+'<small>LV '+t[1]+(t[1]<5?' · ⚡'+t[2]:' MAX')+'</small></div>';
-  else h+='<div class="sl" data-i="'+i+'"><span class="pl">+</span></div>';
+  if(t){let pp='';for(let q=1;q<=5;q++)pp+='<i'+(q>t[1]?' class="o"':'')+'></i>';
+   h+='<div class="sl f" data-i="'+i+'" style="border-color:'+TY[t[0]].col+';color:'+TY[t[0]].col+';background:linear-gradient(160deg,'+TY[t[0]].col+'30,#0d1530 70%)">'+ICON(t[0])+'<div>'+TY[t[0]].n+'</div><div class="pips">'+pp+'</div><small>'+(t[1]<5?'UPGRADE ⚡'+t[2]:'MAX LEVEL')+'</small></div>';}
+  else h+='<div class="sl" data-i="'+i+'"><span class="pl" style="font-size:38px">+</span><small style="color:#6a79b8">BUILD</small></div>';
  }
  $('slots').innerHTML=h;
  $('slots').querySelectorAll('.sl').forEach(e=>e.onclick=()=>openSheet(+e.dataset.i));
@@ -180,7 +198,7 @@ function openSheet(i,keep){
   if(snap.st==='prep')h+='<div class="opt" style="border-color:#ff6688" data-a="sell">Sell (60% back)</div>';
  }else{
   h+='<div style="margin-bottom:8px">Build turret</div>';
-  TY.forEach((y,k)=>{const c=Math.round(y.c*(1-(snap.ds||0)));h+='<div class="opt'+(p.en<c?' no':'')+'" style="border-color:'+y.col+';color:'+y.col+'" data-a="b'+k+'">'+y.n+'<span>⚡'+c+'</span></div>'});
+  TY.forEach((y,k)=>{const c=Math.round(y.c*(1-(snap.ds||0)));h+='<div class="opt'+(p.en<c?' no':'')+'" style="border-color:'+y.col+';color:'+y.col+'" data-a="b'+k+'"><span class="l">'+ICON(k)+'<span>'+y.n+'<div class="d">'+y.d+'</div></span></span><span>⚡'+c+'</span></div>'});
  }
  h+='<div class="opt" style="border-color:#3a4a8a;justify-content:center" data-a="x">Close</div>';
  sh.innerHTML=h;sh.classList.add('on');
@@ -212,6 +230,7 @@ setInterval(()=>{
  send({t:'hb'});
  if(snap&&Date.now()-lastSnap>4000){$('chip').className='off';$('chip').textContent='host offline';send({t:'hello'})}
 },2000);
+addEventListener('pagehide',()=>{if(joined&&net)send({t:'bye'})});
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(room&&ls.get('sb_name')&&qs.get('room')===null&&ls.get('sb_proom')===room){/* returning player: stay on join screen until they tap */}
 window.__play={onMsg,get snap(){return snap},render,send,id};
