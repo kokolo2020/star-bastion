@@ -77,13 +77,16 @@ function joinUrl(){
 }
 function shortUrl(){const b=new URL('play.html',location.href);return b.host+b.pathname+'?room='+ROOM}
 let qrCanvas=null;
+let qrN=0,qrM=null;const qrCache={};
 function makeQR(){
  try{
   if(!window.QRCode)return;
   const holder=document.createElement('div');
-  new window.QRCode(holder,{text:joinUrl(),width:256,height:256,correctLevel:window.QRCode.CorrectLevel.M});
+  const q=new window.QRCode(holder,{text:joinUrl(),width:256,height:256,correctLevel:window.QRCode.CorrectLevel.M});
   qrCanvas=holder.querySelector('canvas');
- }catch(e){qrCanvas=null}
+  const o=q._oQRCode;
+  if(o){qrN=o.getModuleCount();qrM=[];for(let r=0;r<qrN;r++)for(let c=0;c<qrN;c++)qrM.push(o.isDark(r,c)?1:0)}
+ }catch(e){qrCanvas=null;qrN=0}
 }
 
 /* ---------- state ---------- */
@@ -567,10 +570,18 @@ function drawNova(){
  }
  glow(false);
 }
-function drawQR(x,y,size,pad){
- ctx.fillStyle='#ffffff';rr(x-pad,y-pad,size+pad*2,size+pad*2,10);ctx.fill();
- if(qrCanvas){ctx.imageSmoothingEnabled=false;ctx.drawImage(qrCanvas,x,y,size,size);ctx.imageSmoothingEnabled=true}
- else txt('QR',x+size/2,y+size/2,20,'#222','center');
+function qrSize(m){return qrN?(qrN+8)*m/1.5:120}
+function qrImg(m){
+ if(qrCache[m])return qrCache[m];
+ const n=qrN+8,c=document.createElement('canvas');c.width=c.height=n*m;const x=c.getContext('2d');
+ x.fillStyle='#fff';x.fillRect(0,0,n*m,n*m);x.fillStyle='#000';
+ for(let r=0;r<qrN;r++)for(let q=0;q<qrN;q++)if(qrM[r*qrN+q])x.fillRect((q+4)*m,(r+4)*m,m,m);
+ return qrCache[m]=c;
+}
+function drawQR(x,y,m){
+ const sz=qrSize(m);
+ if(!qrN){ctx.fillStyle='#fff';rr(x,y,sz,sz,8);ctx.fill();txt('QR',x+sz/2,y+sz/2,20,'#222','center');return sz}
+ ctx.imageSmoothingEnabled=false;ctx.drawImage(qrImg(m),x,y,sz,sz);ctx.imageSmoothingEnabled=true;return sz;
 }
 function drawHud(){
  ctx.fillStyle='rgba(5,8,22,.82)';ctx.fillRect(0,0,FW,TOPY);
@@ -609,10 +620,10 @@ function drawFeed(){
  feed.forEach((f,i)=>{ctx.globalAlpha=Math.min(1,f.t);txt(f.s,16,TOPY+20+i*22,15,f.col,'left','700');ctx.globalAlpha=1});
 }
 function drawMiniJoin(){
- const s=150,x=FW-s-22,y=TOPY+12;
- drawQR(x,y,s,6);
- txt('SCAN TO JOIN  (tap = big)',x+s/2,y+s+24,12,'#ffffff','center','800');
- txt(ROOM,x+s/2,y+s+48,24,'#ffe03d','center','800',8);
+ const s=qrSize(4),x=FW-s-12,y=TOPY+8;
+ drawQR(x,y,4);
+ txt('SCAN TO JOIN',x+s/2,y+s+14,13,'#ffffff','center','800');
+ txt(ROOM,x+s/2,y+s+38,24,'#ffe03d','center','800',8);
 }
 function drawPrep(){
  const act=stationed();
@@ -621,7 +632,7 @@ function drawPrep(){
   const px=130,py=118;
   txt('STAR BASTION  CO-OP',FW/2,py,54,'#35e6ff','center','800',24);
   txt('Scan the code on your phone, pick a station, defend the fortress together',FW/2,py+48,20,'#c9d4ff','center','600');
-  drawQR(FW/2-330,py+95,230,12);
+  drawQR(FW/2-342,py+83,5);
   txt('ROOM CODE',FW/2+60,py+120,16,'#8a97c8','left','700');
   txt(ROOM,FW/2+60,py+170,78,'#ffe03d','left','800',18);
   txt(shortUrl(),FW/2+60,py+232,17,'#c9d4ff','left','600');
@@ -683,7 +694,7 @@ function draw(){
  if(state==='prep')drawPrep();
  if(state!=='over'&&!(state==='prep'&&G.wave===0))drawMiniJoin();
  drawBanner();
- if(qrBig){ctx.fillStyle='rgba(3,5,16,.86)';ctx.fillRect(0,0,FW,FH);drawQR(FW/2-190,110,380,16);txt('ROOM '+ROOM,FW/2,560,56,'#ffe03d','center','800',16);txt('tap or press Q to close',FW/2,620,16,'#8a97c8','center','600')}
+ if(qrBig){ctx.fillStyle='rgba(3,5,16,.86)';ctx.fillRect(0,0,FW,FH);drawQR(FW/2-qrSize(8)/2,100,8);txt('ROOM '+ROOM,FW/2,560,56,'#ffe03d','center','800',16);txt('tap or press Q to close',FW/2,620,16,'#8a97c8','center','600')}
  if(hurt>0){const vg=ctx.createRadialGradient(FW/2,FH/2,FH*.3,FW/2,FH/2,FH*.9);vg.addColorStop(0,'rgba(255,30,60,0)');vg.addColorStop(1,'rgba(255,30,60,'+(hurt*.5)+')');ctx.fillStyle=vg;ctx.fillRect(0,0,FW,FH)}
  if(flashW>0){ctx.fillStyle='rgba(255,255,255,'+Math.min(1,flashW*.75)+')';ctx.fillRect(0,0,FW,FH)}
  if(state==='cards')drawCards();
@@ -719,7 +730,7 @@ function cfgPrompt(){
 cv.addEventListener('click',e=>{
  const r=cv.getBoundingClientRect(),fx=(e.clientX-r.left)/r.width*FW,fy=(e.clientY-r.top)/r.height*FH;
  if(qrBig){qrBig=false;return}
- if(fx>FW-190&&fy>TOPY&&fy<TOPY+230&&state!=='over'&&!(state==='prep'&&G.wave===0)){qrBig=true;return}
+ if(fx>FW-qrSize(4)-20&&fy>TOPY&&fy<TOPY+qrSize(4)+60&&state!=='over'&&!(state==='prep'&&G.wave===0)){qrBig=true;return}
  if(state==='prep'&&G.wave===0&&fy/FH>.55&&fy/FH<.8)cfgPrompt();
 });
 addEventListener('keydown',e=>{
