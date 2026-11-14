@@ -76,11 +76,13 @@ button:disabled{opacity:.4}
  <div class="row" style="margin-top:8px"><span style="font-size:11px;color:#8a97c8;width:50px">FORT</span><div class="bar"><i id="hpI" style="background:#5dff7a"></i><b id="hpT"></b></div></div>
  <div class="row" style="margin-top:6px"><span style="font-size:11px;color:#8a97c8;width:50px">NOVA</span><div class="bar"><i id="chI" style="background:#ff9a3d"></i><b id="chT"></b></div></div>
  <div class="sector-strip"><span>LIVE BATTLEFIELD</span><strong id="sectorName">Aurora Reach</strong></div><div class="battle-view-tools"><span id="battleHint">Following your station</span><button id="battleView" class="sec" aria-pressed="true">Show full battlefield</button></div><div id="bfw"><canvas id="bf" width="640" height="328"></canvas></div>
- <div id="slots"></div>
+ <div id="upgradePanel" hidden><div class="upgrade-heading"><strong>YOUR DEFENSE STATION</strong><button id="closeUpgrades" class="sec" aria-label="Close upgrades">✕</button></div><div id="slots"></div>
  <div id="info" style="text-align:center;color:#c9d4ff;min-height:22px"></div>
+ <button id="chg" class="sec" style="margin-top:10px;font-size:13px;padding:10px">Change station / leave</button></div>
+ <div class="battle-actions"><button id="upgradesBtn" class="sec" aria-expanded="false" aria-controls="upgradePanel">Build / upgrade</button>
  <button id="rdy" class="sec" style="margin-top:8px;display:none">READY</button>
  <button id="novaBtn" style="display:none">⚡ FIRE NOVA ⚡</button>
- <button id="chg" class="sec" style="margin-top:10px;font-size:13px;padding:10px">Change station / leave</button>
+ </div>
 </div>
 
 <div class="scr" id="s-cards">
@@ -253,15 +255,20 @@ const ENC=['#ff5577','#ffa040','#e060ff','#40e0ff','#a070ff','#e05050','#ff3050'
 const bf=$('bf'),bx=bf.getContext('2d'),battleArt=window.BattleRender.create(bx,IMG);
 const BW=1280,TOP=64,BH=656;
 let EM=Object.create(null),BL=[],BM=[],PT=[],FL=[],TA=Object.create(null),NV=-1,NX=null,lastFxT=0,fxSpeed=1;
-let focusView=ls.get('sb_battle_view')!=='all',fitDirty=true,viewCamera=null;
+let focusView=ls.get('sb_battle_view_v2')!=='all',fitDirty=true,viewCamera=null;
+function battleCamera(){
+ const p=me(),count=snap?snap.os.length:10,focus=focusView&&!!p&&p.s>=0,cam=window.BattleRender.camera(p?p.s:0,count,focus);
+ if(focus){cam.width=Math.max(320,Math.min(BW,($('bfw').clientWidth||320)/Math.max(180,$('bfw').clientHeight)*BH));cam.x=Math.max(0,Math.min(BW-cam.width,(p.s+.5)*BW/count-cam.width/2))}return cam;
+}
+function setUpgrades(open){$('upgradePanel').hidden=!open;$('upgradesBtn').setAttribute('aria-expanded',String(open));$('upgradesBtn').textContent=open?'Close upgrades':'Build / upgrade'}
+$('upgradesBtn').onclick=()=>setUpgrades($('upgradePanel').hidden);$('closeUpgrades').onclick=()=>setUpgrades(false);
 function resizeBattle(){
- const p=me();viewCamera=window.BattleRender.camera(p?p.s:0,snap?snap.os.length:10,focusView&&!!p&&p.s>=0);
- const ratio=viewCamera.width/viewCamera.height;$('bfw').style.aspectRatio=String(ratio);bf.style.aspectRatio=String(ratio);
+ viewCamera=battleCamera();
  const w=Math.max(1,bf.clientWidth||$('bfw').clientWidth||320),dpr=Math.min(2,window.devicePixelRatio||1);
- const rw=Math.round(w*dpr),rh=Math.round(w/ratio*dpr);if(bf.width!==rw||bf.height!==rh){bf.width=rw;bf.height=rh}
+ const rw=Math.round(w*dpr),rh=Math.round(Math.max(180,$('bfw').clientHeight)*dpr);if(bf.width!==rw||bf.height!==rh){bf.width=rw;bf.height=rh}
  $('battleView').textContent=focusView?'Show full battlefield':'Focus my station';$('battleView').setAttribute('aria-pressed',String(focusView));$('battleHint').textContent=focusView?'Following your station · detailed view':'All stations · full battlefield';fitDirty=false;
 }
-$('battleView').onclick=()=>{focusView=!focusView;ls.set('sb_battle_view',focusView?'station':'all');fitDirty=true;resizeBattle()};
+$('battleView').onclick=()=>{focusView=!focusView;ls.set('sb_battle_view_v2',focusView?'station':'all');fitDirty=true;resizeBattle()};
 addEventListener('resize',()=>{fitDirty=true});if(window.ResizeObserver)new ResizeObserver(()=>{fitDirty=true}).observe($('bfw'));
 const num=(v,f=0)=>Number.isFinite(v)?v:f;
 const color=v=>/^#[0-9a-f]{6}$/i.test(v||'')?v:'#ffffff';
@@ -284,11 +291,12 @@ let lastD=performance.now();
 function drawBF(){
  requestAnimationFrame(drawBF);const now=performance.now(),dt=Math.min(.1,(now-lastD)/1000);lastD=now;
  if(!snap||!$('s-play').classList.contains('on')||document.hidden)return;
- if(fitDirty||!viewCamera)resizeBattle();const p=me(),cam=window.BattleRender.camera(p?p.s:0,snap.os.length||10,focusView&&!!p&&p.s>=0);
+ if(fitDirty||!viewCamera)resizeBattle();const p=me(),cam=battleCamera();
  if(cam.x!==viewCamera.x||cam.width!==viewCamera.width)resizeBattle();
  if(now-lastFxT>1500){EM=Object.create(null);BL=[];BM=[];PT=[];FL=[];TA=Object.create(null);NV=-1;NX=null}
- const K=bf.width/viewCamera.width,bottom=720,SW=BW/(snap.os.length||10),step=dt*fxSpeed;
- bx.setTransform(K,0,0,K,-viewCamera.x*K,-TOP*K);bx.imageSmoothingEnabled=true;
+ const K=Math.min(bf.width/viewCamera.width,bf.height/BH),bottom=720,SW=BW/(snap.os.length||10),step=dt*fxSpeed;
+ bx.setTransform(1,0,0,1,0,0);bx.fillStyle='#030919';bx.fillRect(0,0,bf.width,bf.height);
+ bx.setTransform(K,0,0,K,(bf.width-viewCamera.width*K)/2-viewCamera.x*K,(bf.height-BH*K)/2-TOP*K);bx.imageSmoothingEnabled=true;
  Regions.draw(bx,BW,bottom,snap.region||Regions.forWave(snap.w).id,now/1000,{reducedMotion});
  if(p&&p.s>=0){bx.fillStyle=SCOL[p.s]+'16';bx.fillRect(p.s*SW,TOP,SW,BH)}
  bx.strokeStyle='rgba(90,160,215,.09)';bx.lineWidth=1;for(let s=1;s<snap.os.length;s++){bx.beginPath();bx.moveTo(s*SW,TOP);bx.lineTo(s*SW,bottom);bx.stroke()}

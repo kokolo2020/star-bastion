@@ -15,3 +15,17 @@ body.controller{background:radial-gradient(ellipse at 10% 0,#26315599,transparen
 .controller #bf{display:block;width:100%;height:auto;aspect-ratio:80/41}
 
 .controller .battle-view-tools{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:7px 0 -3px}.battle-view-tools span{font:10px system-ui;color:#91abc8}.controller #battleView{font:700 10px system-ui;padding:8px 10px;min-height:32px;border:1px solid #64dbff55;background:#10243b;color:#9cecff;border-radius:8px}.controller #bfw,.controller #bf{transition:none}
+
+/* Battle-first phone layout: controls stay available without covering the action. */
+.controller #s-play{overflow:hidden;padding-bottom:max(10px,env(safe-area-inset-bottom));gap:0}
+.controller #s-play #bfw{flex:1 1 180px;min-height:180px;aspect-ratio:auto;margin-top:8px}
+.controller #s-play #bf{width:100%;height:100%;aspect-ratio:auto;position:absolute;inset:0}
+.controller .battle-actions{display:flex;gap:8px;margin-top:10px;flex-shrink:0}
+.controller .battle-actions button{flex:1;min-height:48px;margin:0!important;font-size:12px!important;padding:10px!important}
+.controller #upgradesBtn{background:linear-gradient(135deg,#15334c,#0b1d34);border:1px solid #6adfff77;color:#b8f0ff}
+.controller #upgradePanel{position:absolute;z-index:12;left:10px;right:10px;bottom:max(70px,calc(env(safe-area-inset-bottom) + 64px));max-height:72%;overflow-y:auto;padding:12px;background:linear-gradient(145deg,#13283f,#061020);border:1px solid #4e99b5;border-radius:18px;box-shadow:0 -12px 50px #000b}
+.controller #upgradePanel[hidden]{display:none}
+.controller .upgrade-heading{display:flex;align-items:center;justify-content:space-between;color:#a5dcf4;font-size:11px;letter-spacing:1px}
+.controller #closeUpgrades{padding:8px 13px;min-height:36px}
+.controller #upgradePanel #slots{margin:8px 0}.controller #upgradePanel .sl{min-height:112px}.controller #upgradePanel .sl img{width:58px;height:58px}
+@media(max-height:600px){.controller #s-play{padding-top:max(22px,env(safe-area-inset-top))}.controller #s-play .sector-strip{margin-top:6px}.controller .battle-view-tools span{max-width:48%}.controller .battle-actions button{min-height:42px}}

@@ -40,10 +40,12 @@ The automated tests cover shared enemy/turret/effect rendering, focus-camera bou
 
 See `assets/art/ARTWORK.md` for asset sources and prompts.
 
-Android layout regression preview: `tests/phone-layout.html` reproduces a charged NOVA and six max-level turrets at wave 21. Verify at 390×650 and 320×568: the battlefield stays at least 160px high and the controller scrolls to NOVA/leave. The fixture is synthetic and has no real host; its offline status is expected.
+Android layout regression preview: `tests/phone-layout.html` reproduces a charged NOVA and six max-level turrets at wave 21. Verify at 390×650 and 320×568: the battlefield fills the available screen (at least 180px high), NOVA/Ready stay in the bottom dock, and Build / upgrade opens a scrollable drawer with station/leave controls. The fixture is synthetic and has no real host; its offline status is expected.
 
 ### Phone battlefield graphics
 
-Host and controller share `battle-renderer.js`: seven enemy silhouettes, shields, frost, textured aiming turrets, muzzle flashes, beams, explosions and NOVA. The controller defaults to a closer station view; **Show full battlefield** restores the overview. Canvas resolution follows the screen density (capped at 2×), while upgrade controls remain scrollable.
+Host and controller share `battle-renderer.js`: seven enemy silhouettes, shields, frost, textured aiming turrets, muzzle flashes, beams, explosions and NOVA. The controller defaults to a closer station view; **Show full battlefield** restores the overview. Canvas resolution follows the screen density (capped at 2×), while build/upgrade controls open in a scrollable drawer.
 
 The host sends bounded visual updates at the existing 8 Hz rate; simulation, damage and purchases remain host-authoritative. Older running hosts remain compatible, but need a refresh between games to send the new beam, particle and aiming data. Refresh the phone to load the new renderer. The regression fixture includes synthetic rich effects and is not proof of real-device network latency.
+
+The battle-first controller reserves the remaining viewport for the canvas and keeps upgrades collapsed initially. The station camera adapts to the available screen shape without stretching the artwork. Full overview preserves the complete battlefield aspect ratio; the closer station view fills a portrait screen.
