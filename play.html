@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#070516">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Star Bastion Controller</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#070516;color:#e8eeff;font:600 16px system-ui,-apple-system,sans-serif;overflow:hidden;touch-action:manipulation}
+body{background:radial-gradient(120% 80% at 50% 0,#1a1450,#070516 60%)}
+.scr{position:fixed;inset:0;display:none;flex-direction:column;padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom));overflow:auto}
+.scr.on{display:flex}
+h1{margin:18px 0 4px;font-size:28px;color:#35e6ff;text-shadow:0 0 14px #35e6ff88}
+.sub{color:#8a97c8;font-size:14px;margin-bottom:18px}
+input{width:100%;padding:14px;border-radius:12px;border:2px solid #2a3a7a;background:#0d1530;color:#fff;font:700 18px system-ui;margin-bottom:12px;text-transform:none}
+input.code{text-transform:uppercase;letter-spacing:6px;text-align:center;font-size:26px}
+button{font:800 16px system-ui;color:#06101f;background:#35e6ff;border:0;border-radius:12px;padding:14px;cursor:pointer}
+button:active{transform:scale(.97)}
+button.sec{background:#1a2858;color:#c9d4ff}
+button:disabled{opacity:.4}
+#chip{position:fixed;top:6px;right:8px;font-size:11px;padding:3px 8px;border-radius:9px;background:#1a2858;z-index:9}
+#chip.on{color:#5dff7a}#chip.off{color:#ff6688}#chip.loc{color:#ffb06a}
+#grid6{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.st{border:2px solid;border-radius:14px;padding:18px 8px;text-align:center;background:#0d1530;font-weight:800}
+.st small{display:block;color:#8a97c8;font-weight:600;margin-top:4px}
+.st.taken{opacity:.45}
+.row{display:flex;gap:8px;align-items:center}
+.bar{height:18px;border-radius:9px;background:#ffffff1a;overflow:hidden;position:relative;flex:1}
+.bar i{display:block;height:100%;border-radius:9px;transition:width .3s}
+.bar b{position:absolute;inset:0;text-align:center;font-size:11px;line-height:18px;color:#06101f}
+#slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.sl{aspect-ratio:1;border-radius:14px;border:2px dashed #3a4a8a;background:#0d1530;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:13px;text-align:center}
+.sl.f{border-style:solid}
+.sl small{color:#ffe03d;font-size:11px}
+.sl .pl{font-size:26px;color:#3a4a8a}
+#sheet{position:fixed;left:0;right:0;bottom:0;background:#0d1530;border-top:2px solid #35e6ff;border-radius:18px 18px 0 0;padding:14px 14px max(16px,env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .2s;z-index:20}
+#sheet.on{transform:none}
+.opt{display:flex;justify-content:space-between;align-items:center;padding:13px;margin-bottom:8px;border-radius:12px;border:2px solid;background:#111a3a;font-weight:800}
+.opt.no{opacity:.4}
+#msg{position:fixed;left:50%;top:50px;transform:translateX(-50%);background:#ff6688;color:#06101f;padding:8px 14px;border-radius:12px;font-weight:800;z-index:30;display:none}
+.big{font-size:22px;font-weight:800}
+.card{border:2px solid;border-radius:14px;padding:14px;margin-bottom:10px;background:#0d1530}
+.card.sel{background:#1a2858}
+#novaBtn{font-size:22px;padding:18px;background:#ffe03d;margin-top:auto}
+</style>
+</head>
+<body>
+<div id="chip" class="off">...</div>
+<div id="msg"></div>
+
+<div class="scr on" id="s-join">
+ <h1>STAR BASTION</h1><div class="sub">Co-op fortress defense</div>
+ <input id="nm" placeholder="Your name" maxlength="12" autocomplete="off">
+ <input id="rm" class="code" placeholder="ROOM" maxlength="6" autocomplete="off">
+ <button id="goJoin">JOIN GAME</button>
+</div>
+
+<div class="scr" id="s-pick">
+ <h1>Pick your station</h1><div class="sub" id="pickSub">Tap a free station</div>
+ <div id="grid6"></div>
+</div>
+
+<div class="scr" id="s-play">
+ <div class="row"><div class="big" id="en">⚡0</div><div style="flex:1;text-align:center;color:#8a97c8" id="wv">WAVE 0</div><div id="stn" style="font-weight:800"></div></div>
+ <div class="row" style="margin-top:8px"><span style="font-size:11px;color:#8a97c8;width:50px">FORT</span><div class="bar"><i id="hpI" style="background:#5dff7a"></i><b id="hpT"></b></div></div>
+ <div class="row" style="margin-top:6px"><span style="font-size:11px;color:#8a97c8;width:50px">NOVA</span><div class="bar"><i id="chI" style="background:#ff9a3d"></i><b id="chT"></b></div></div>
+ <div id="slots"></div>
+ <div id="info" style="text-align:center;color:#c9d4ff;min-height:22px"></div>
+ <button id="rdy" class="sec" style="margin-top:8px;display:none">READY</button>
+ <button id="novaBtn" style="display:none">⚡ FIRE NOVA ⚡</button>
+ <button id="chg" class="sec" style="margin-top:10px;font-size:13px;padding:10px">Change station / leave</button>
+</div>
+
+<div class="scr" id="s-cards">
+ <h1 style="color:#5dff7a">Wave cleared!</h1><div class="sub" id="cdSub">Vote for a team upgrade</div>
+ <div id="cards"></div>
+</div>
+
+<div class="scr" id="s-over">
+ <h1 style="color:#ff3050">Fortress down</h1><div class="sub" id="ovSub"></div>
+ <div id="ovList" class="big"></div>
+ <div class="sub" style="margin-top:20px">A new round starts shortly on the big screen.</div>
+</div>
+
+<div id="sheet"></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="net.js"></script>
+<script>
+(()=>{
+'use strict';
+const SCOL=['#35e6ff','#ff5de0','#5dff7a','#ffa63d','#8aa8ff','#ffe03d'];
+const TY=[{n:'PULSE',c:50,col:'#35e6ff'},{n:'CANNON',c:100,col:'#ffa63d'},{n:'LASER',c:140,col:'#5dff7a'},{n:'FROST',c:90,col:'#8aa8ff'},{n:'RAIL',c:200,col:'#ff5de0'}];
+const $=id=>document.getElementById(id);
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let id=ls.get('sb_id');if(!id){id='p'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);ls.set('sb_id',id)}
+const qs=new URLSearchParams(location.search);
+let room=(qs.get('room')||ls.get('sb_proom')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+$('nm').value=ls.get('sb_name')||'';$('rm').value=room;
+let net=null,snap=null,lastSnap=0,joined=false,sheetSlot=-1,myName='';
+const show=n=>{document.querySelectorAll('.scr').forEach(e=>e.classList.toggle('on',e.id==='s-'+n))};
+function msg(s){const m=$('msg');m.textContent=s;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',1800);if(navigator.vibrate)navigator.vibrate(60)}
+function send(o){if(net){o.id=id;net.send(o)}}
+function setChip(s){const c=$('chip');c.className=s==='online'?'on':s==='local'?'loc':'off';c.textContent=s==='online'?'online':s==='local'?'local test':s==='error'?'no connection':'connecting...'}
+
+function connect(){
+ if(net)return;
+ net=window.SBNet.open(room,onMsg,s=>{setChip(s);if(s==='online'||s==='local'){send({t:'join',nm:myName});send({t:'hello'})}});
+}
+$('goJoin').onclick=()=>{
+ myName=($('nm').value||'').trim()||'Player';room=($('rm').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+ if(!room){msg('Enter room code');return}
+ ls.set('sb_name',myName);ls.set('sb_proom',room);joined=true;
+ connect();show('pick');render();
+};
+function onMsg(m){
+ if(!m)return;
+ if(m.t==='snap'){snap=m;lastSnap=Date.now();render()}
+ else if(m.t==='toast'&&m.to===id)msg(m.m);
+}
+function me(){return snap&&snap.pl.find(p=>p.id===id)}
+function render(){
+ if(!joined)return;
+ if(!snap){$('pickSub').textContent='Connecting to host...';return}
+ const p=me();
+ if(!p){send({t:'join',nm:myName});return}
+ if(snap.st==='over'){show('over');$('ovSub').textContent='Reached wave '+snap.w+' · '+snap.kills+' kills';
+  $('ovList').innerHTML=snap.pl.filter(x=>x.s>=0).sort((a,b)=>b.k-a.k).map(x=>'<div style="color:'+SCOL[x.s]+'">'+esc(x.nm)+' — '+x.k+'</div>').join('');return}
+ if(p.s<0){show('pick');renderPick();return}
+ if(snap.st==='cards'&&snap.cd){show('cards');renderCards();return}
+ show('play');renderPlay(p);
+}
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function renderPick(){
+ $('pickSub').textContent='Tap a free station to defend';
+ let h='';
+ for(let s=0;s<6;s++){
+  const oid=snap.os[s],o=oid&&snap.pl.find(x=>x.id===oid);
+  h+='<div class="st'+(o?' taken':'')+'" data-s="'+s+'" style="border-color:'+SCOL[s]+';color:'+SCOL[s]+'">STATION '+(s+1)+'<small>'+(o?esc(o.nm):'free')+'</small></div>';
+ }
+ $('grid6').innerHTML=h;
+ $('grid6').querySelectorAll('.st').forEach(e=>e.onclick=()=>{send({t:'claim',s:+e.dataset.s});if(navigator.vibrate)navigator.vibrate(30)});
+}
+function renderPlay(p){
+ $('en').textContent='⚡'+p.en;
+ $('wv').textContent=snap.st==='prep'?'PREP · next wave '+(snap.w+1)+(snap.tm!=null?' · '+snap.tm+'s':''):'WAVE '+snap.w+' · '+snap.ne+' left';
+ $('stn').textContent='ST '+(p.s+1);$('stn').style.color=SCOL[p.s];
+ const hp=Math.max(0,snap.hp/snap.mh);
+ $('hpI').style.width=(hp*100)+'%';$('hpI').style.background=hp>.4?'#5dff7a':'#ff3050';$('hpT').textContent=snap.hp+' / '+snap.mh;
+ $('chI').style.width=snap.ch+'%';$('chT').textContent=snap.ch>=100?'READY':snap.ch+'%';
+ let h='';
+ for(let i=0;i<6;i++){
+  const t=p.sl[i];
+  if(t)h+='<div class="sl f" data-i="'+i+'" style="border-color:'+TY[t[0]].col+';color:'+TY[t[0]].col+'">'+TY[t[0]].n+'<small>LV '+t[1]+(t[1]<5?' · ⚡'+t[2]:' MAX')+'</small></div>';
+  else h+='<div class="sl" data-i="'+i+'"><span class="pl">+</span></div>';
+ }
+ $('slots').innerHTML=h;
+ $('slots').querySelectorAll('.sl').forEach(e=>e.onclick=()=>openSheet(+e.dataset.i));
+ const inPrep=snap.st==='prep';
+ $('rdy').style.display=inPrep?'block':'none';
+ $('rdy').textContent=p.rd?'READY ✓ (tap to cancel)':'READY';
+ $('rdy').style.background=p.rd?'#5dff7a':'#1a2858';$('rdy').style.color=p.rd?'#06101f':'#c9d4ff';
+ $('novaBtn').style.display=(snap.st==='wave'&&snap.ch>=100)?'block':'none';
+ $('info').textContent=inPrep?(snap.res?'Team upgrade: '+snap.res:'Build your turrets, then tap READY'):'';
+ if(sheetSlot>=0)openSheet(sheetSlot,true);
+}
+function openSheet(i,keep){
+ const p=me();if(!p)return;sheetSlot=i;const t=p.sl[i],sh=$('sheet');
+ let h='';
+ if(t){
+  h+='<div style="margin-bottom:8px;color:'+TY[t[0]].col+'">'+TY[t[0]].n+' · level '+t[1]+'</div>';
+  if(t[1]<5)h+='<div class="opt'+(p.en<t[2]?' no':'')+'" style="border-color:#ffe03d" data-a="up">Upgrade<span>⚡'+t[2]+'</span></div>';
+  if(snap.st==='prep')h+='<div class="opt" style="border-color:#ff6688" data-a="sell">Sell (60% back)</div>';
+ }else{
+  h+='<div style="margin-bottom:8px">Build turret</div>';
+  TY.forEach((y,k)=>{const c=Math.round(y.c*(1-(snap.ds||0)));h+='<div class="opt'+(p.en<c?' no':'')+'" style="border-color:'+y.col+';color:'+y.col+'" data-a="b'+k+'">'+y.n+'<span>⚡'+c+'</span></div>'});
+ }
+ h+='<div class="opt" style="border-color:#3a4a8a;justify-content:center" data-a="x">Close</div>';
+ sh.innerHTML=h;sh.classList.add('on');
+ sh.querySelectorAll('.opt').forEach(e=>e.onclick=()=>{
+  const a=e.dataset.a;
+  if(a==='up')send({t:'up',i});else if(a==='sell')send({t:'sell',i});else if(a[0]==='b')send({t:'build',i,k:+a.slice(1)});
+  if(navigator.vibrate)navigator.vibrate(25);closeSheet();
+ });
+}
+function closeSheet(){sheetSlot=-1;$('sheet').classList.remove('on')}
+function renderCards(){
+ closeSheet();
+ $('cdSub').textContent='Vote for a team upgrade · '+snap.tm+'s';
+ const p=me(),mine=renderCards.mine;
+ $('cards').innerHTML=snap.cd.map((c,i)=>'<div class="card'+(mine===i?' sel':'')+'" data-c="'+i+'" style="border-color:'+c.col+'"><div class="big" style="color:'+c.col+'">'+esc(c.n)+'</div><div style="color:#aab6e6;font-weight:500">'+esc(c.d)+'</div><div style="margin-top:6px;color:#fff">'+c.v+' vote'+(c.v===1?'':'s')+'</div></div>').join('');
+ $('cards').querySelectorAll('.card').forEach(e=>e.onclick=()=>{renderCards.mine=+e.dataset.c;send({t:'vote',c:+e.dataset.c});if(navigator.vibrate)navigator.vibrate(30);renderCards()});
+}
+$('rdy').onclick=()=>{const p=me();if(p)send({t:'ready',v:!p.rd})};
+$('novaBtn').onclick=()=>{send({t:'nova'});if(navigator.vibrate)navigator.vibrate([80,40,160])};
+$('chg').onclick=()=>{
+ const p=me();
+ if(p&&p.sl.some(x=>x)){if(!confirm('Leave the game? Your turrets will be removed.'))return}
+ send({t:'leave'});snap=null;show('join');joined=false;
+};
+$('sheet').addEventListener('click',e=>e.stopPropagation());
+document.addEventListener('click',e=>{if(sheetSlot>=0&&!e.target.closest('.sl')&&!e.target.closest('#sheet'))closeSheet()});
+setInterval(()=>{
+ if(!joined)return;
+ send({t:'hb'});
+ if(snap&&Date.now()-lastSnap>4000){$('chip').className='off';$('chip').textContent='host offline';send({t:'hello'})}
+},2000);
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(room&&ls.get('sb_name')&&qs.get('room')===null&&ls.get('sb_proom')===room){/* returning player: stay on join screen until they tap */}
+window.__play={onMsg,get snap(){return snap},render,send,id};
+})();
+</script>
+</body>
+</html>
