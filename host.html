@@ -88,7 +88,7 @@ function makeQR(){
 
 /* ---------- state ---------- */
 let state='prep',G,players={},enemies=[],bullets=[],beams=[],parts=[],floats=[],towers=[],queue=[],feed=[];
-let qrBig=false,spawnT=0,T=0,shake=0,hurt=0,banner=null,waveTotal=0,nova=null,flashW=0,prepT=45,startIn=null,voteT=0,votes={},choices=[],overT=0,snapT=0,snapSeq=0,lastResult='';
+let qrBig=false,eid=0,lastFx=0,fxHad=false,spawnT=0,T=0,shake=0,hurt=0,banner=null,waveTotal=0,nova=null,flashW=0,prepT=45,startIn=null,voteT=0,votes={},choices=[],overT=0,snapT=0,snapSeq=0,lastResult='';
 let best=0;try{best=+localStorage.getItem('sb_best')||0}catch(e){}
 const stars=[];for(let i=0;i<150;i++){const l=Math.random();stars.push({x:Math.random()*FW,y:Math.random()*FH,s:l<.6?.8:l<.9?1.4:2.2,v:l<.6?5:l<.9?12:26,tw:Math.random()*6})}
 
@@ -155,7 +155,7 @@ function spawnX(r){
 function spawn(type,x,y){
  const b=EN[type],hm=hpMul(G.wave),bm=type==='boss'?1+.35*(G.wave/5-1):1;
  const hp=b.hp*hm*bm;
- enemies.push({k:type,x:x==null?spawnX(b.r):x,y:y==null?TOPY+10:y,hp,mhp:hp,sh:(b.sh||0)*hm,sp:b.sp*(.9+Math.random()*.2),r:b.r,rw:b.rw,fd:b.fd,col:b.col,sa:0,st:0,fl:0,ph:Math.random()*6,last:null});
+ enemies.push({id:++eid,k:type,x:x==null?spawnX(b.r):x,y:y==null?TOPY+10:y,hp,mhp:hp,sh:(b.sh||0)*hm,sp:b.sp*(.9+Math.random()*.2),r:b.r,rw:b.rw,fd:b.fd,col:b.col,sa:0,st:0,fl:0,ph:Math.random()*6,last:null});
 }
 function waveClear(){
  const bonus=50+G.wave*12;
@@ -337,6 +337,7 @@ function snapshot(){
   pl:Object.values(players).map(p=>({id:p.id,nm:p.nm,s:p.s,en:Math.floor(p.en),rd:p.rd?1:0,k:p.kills,
    aw:(Date.now()-p.seen>20000)?1:0,sl:p.sl.map(t=>t?[t.k,t.l,upCost(t)]:0)})),
   os:own.map(p=>p?p.id:0),
+  tw:towers.map(t=>[Math.round(t.x),Math.round(t.y),t.k,t.l,players[t.o]?players[t.o].s:-1]),
   cd:state==='cards'?choices.map((c,i)=>({n:c.n,d:c.d,col:c.col,v:tally[i]})):null,
   best,kills:G.kills,ds:G.disc,res:lastResult,ne:enemies.length+queue.length};
 }
@@ -692,7 +693,17 @@ function draw(){
 
 /* ---------- loop ---------- */
 let lastT=Date.now(),ticker=false;
-function tick(){const n=Date.now(),dt=Math.min(.1,(n-lastT)/1000);lastT=n;update(dt);sendSnap()}
+const ENK=['scout','grunt','swarm','shield','splitter','tank','boss'];
+function sendFx(){
+ if(!net)return;
+ const has=enemies.length||bullets.length||nova;
+ if(!has&&!fxHad)return;
+ fxHad=!!has;
+ net.send({t:'fx',e:enemies.slice(0,150).map(o=>[o.id,Math.round(o.x),Math.round(o.y),ENK.indexOf(o.k),Math.round(Math.max(0,o.hp)/o.mhp*100)]),
+  b:bullets.slice(0,80).map(b=>[Math.round(b.x),Math.round(b.y),Math.round(b.vx),Math.round(b.vy),b.k]),
+  nv:nova?(nova.ph==='blast'?Math.round(nova.y):-2):-1});
+}
+function tick(){const n=Date.now(),dt=Math.min(.1,(n-lastT)/1000);lastT=n;update(dt);sendSnap();if(n-lastFx>=125){lastFx=n;try{sendFx()}catch(e){}}}
 try{const bl=new Blob(['setInterval(function(){postMessage(0)},50)'],{type:'text/javascript'});const w=new Worker(URL.createObjectURL(bl));w.onmessage=tick;ticker=true}catch(e){ticker=false}
 function frame(){if(!ticker)tick();draw();requestAnimationFrame(frame)}
 async function wl(){try{if(navigator.wakeLock)await navigator.wakeLock.request('screen')}catch(e){}}
@@ -731,7 +742,7 @@ newRound();
 net=window.SBNet.open(ROOM,onMsg,(s,d)=>{netStatus=s;netDetail=d||'';if(s==='online'||s==='local')pushSnap()});
 netMode=net.mode;
 makeQR();
-window.__host={onMsg,update,draw,sendSnap,snapshot,get state(){return state},get G(){return G},players,get enemies(){return enemies},get towers(){return towers},startWave,newRound,get net(){return net},ROOM};
+window.__host={sendFx,onMsg,update,draw,sendSnap,snapshot,get state(){return state},get G(){return G},players,get enemies(){return enemies},get towers(){return towers},startWave,newRound,get net(){return net},ROOM};
 requestAnimationFrame(frame);
 })();
 </script>

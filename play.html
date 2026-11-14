@@ -32,9 +32,10 @@ button:disabled{opacity:.4}
 .bar{height:18px;border-radius:9px;background:#ffffff1a;overflow:hidden;position:relative;flex:1}
 .bar i{display:block;height:100%;border-radius:9px;transition:width .3s}
 .bar b{position:absolute;inset:0;text-align:center;font-size:11px;line-height:18px;color:#06101f}
+#bfw{margin:10px 0 0;border-radius:12px;overflow:hidden;border:1px solid #2a3a7a;background:#050818}#bf{width:100%;display:block}
 #slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
-.sl{min-height:150px;border-radius:16px;border:2px dashed #3a4a8a;background:#0d1530;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:800;font-size:13px;text-align:center;padding:8px 2px}
-.sl svg,.sl img{width:62px;height:62px;filter:drop-shadow(0 0 7px currentColor);object-fit:contain}
+.sl{min-height:128px;border-radius:16px;border:2px dashed #3a4a8a;background:#0d1530;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:800;font-size:13px;text-align:center;padding:8px 2px}
+.sl svg,.sl img{width:54px;height:54px;filter:drop-shadow(0 0 7px currentColor);object-fit:contain}
 .pips{display:flex;gap:3px}.pips i{width:9px;height:4px;border-radius:2px;background:#ffe03d}.pips i.o{background:#ffffff22}
 .opt svg,.opt img{width:40px;height:40px;margin-right:10px;object-fit:contain}.opt .l{display:flex;align-items:center}.opt .d{font-size:11px;color:#8a97c8;font-weight:600}
 .sl.f{border-style:solid}
@@ -72,6 +73,7 @@ button:disabled{opacity:.4}
  <div class="row"><div class="big" id="en">⚡0</div><div style="flex:1;text-align:center;color:#8a97c8" id="wv">WAVE 0</div><div id="stn" style="font-weight:800"></div></div>
  <div class="row" style="margin-top:8px"><span style="font-size:11px;color:#8a97c8;width:50px">FORT</span><div class="bar"><i id="hpI" style="background:#5dff7a"></i><b id="hpT"></b></div></div>
  <div class="row" style="margin-top:6px"><span style="font-size:11px;color:#8a97c8;width:50px">NOVA</span><div class="bar"><i id="chI" style="background:#ff9a3d"></i><b id="chT"></b></div></div>
+ <div id="bfw"><canvas id="bf" width="640" height="328"></canvas></div>
  <div id="slots"></div>
  <div id="info" style="text-align:center;color:#c9d4ff;min-height:22px"></div>
  <button id="rdy" class="sec" style="margin-top:8px;display:none">READY</button>
@@ -139,7 +141,7 @@ $('goJoin').onclick=()=>{
 };
 function onMsg(m){
  if(!m)return;
- if(m.t==='snap'){snap=m;lastSnap=Date.now();render()}
+ if(m.t==='fx')onFx(m);else if(m.t==='snap'){snap=m;lastSnap=Date.now();render()}
  else if(m.t==='toast'&&m.to===id){msg(m.m);if(/^Removed/.test(m.m)){joined=false;snap=null;show('join')}}
 }
 function me(){return snap&&snap.pl.find(p=>p.id===id)}
@@ -233,6 +235,42 @@ setInterval(()=>{
 addEventListener('pagehide',()=>{if(joined&&net)send({t:'bye'})});
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(room&&ls.get('sb_name')&&qs.get('room')===null&&ls.get('sb_proom')===room){/* returning player: stay on join screen until they tap */}
+
+/* ---- live battlefield ---- */
+const ENC=['#ff5577','#ffa040','#e060ff','#40e0ff','#a070ff','#e05050','#ff3050'],ENR=[8,10,6,11,12,16,30];
+const bf=$('bf'),bx=bf.getContext('2d'),BW=1280,TOP=64,BH=656,K=640/BW;
+let EM={},BL=[],NV=-1,lastFxT=0;
+function onFx(m){
+ const now=performance.now();lastFxT=now;const seen={};
+ for(const a of m.e){seen[a[0]]=1;const o=EM[a[0]];if(o){o.tx=a[1];o.ty=a[2];o.hp=a[4]}else EM[a[0]]={x:a[1],y:a[2],tx:a[1],ty:a[2],k:a[3],hp:a[4]}}
+ for(const id in EM)if(!seen[id])delete EM[id];
+ BL=m.b.map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],k:a[4],t0:now}));NV=m.nv;
+}
+let lastD=performance.now();
+function drawBF(){
+ requestAnimationFrame(drawBF);
+ const now=performance.now(),dt=Math.min(.1,(now-lastD)/1000);lastD=now;
+ if(!snap||!$('s-play').classList.contains('on')||document.hidden)return;
+ if(now-lastFxT>1500){EM={};BL=[];NV=-1}
+ const p=me(),NS=snap.os.length||10,SW=BW/NS;
+ bx.setTransform(K,0,0,K,0,-TOP*K);
+ const g=bx.createLinearGradient(0,TOP,0,TOP+BH);g.addColorStop(0,'#070516');g.addColorStop(.7,'#0b1033');g.addColorStop(1,'#0a1024');
+ bx.fillStyle=g;bx.fillRect(0,TOP,BW,BH);
+ if(p&&p.s>=0){bx.fillStyle=SCOL[p.s]+'22';bx.fillRect(p.s*SW,TOP,SW,BH)}
+ bx.strokeStyle='rgba(90,130,255,.12)';bx.lineWidth=2;for(let s=1;s<NS;s++){bx.beginPath();bx.moveTo(s*SW,TOP);bx.lineTo(s*SW,TOP+BH);bx.stroke()}
+ bx.strokeStyle='#35e6ff';bx.lineWidth=4;bx.beginPath();bx.moveTo(0,540);bx.lineTo(BW,540);bx.stroke();
+ for(const id in EM){const o=EM[id];o.x+=(o.tx-o.x)*Math.min(1,dt*12);o.y+=(o.ty-o.y)*Math.min(1,dt*12);
+  const r=Math.max(7,ENR[o.k]*1.3);bx.fillStyle=ENC[o.k];bx.shadowColor=ENC[o.k];bx.shadowBlur=14;bx.beginPath();bx.arc(o.x,o.y,r,0,6.28);bx.fill();bx.shadowBlur=0;
+  if(o.k>=5&&o.hp<100){bx.fillStyle='#000a';bx.fillRect(o.x-r,o.y-r-9,r*2,5);bx.fillStyle='#5dff7a';bx.fillRect(o.x-r,o.y-r-9,r*2*o.hp/100,5)}}
+ bx.lineCap='round';
+ for(const b of BL){const t=(now-b.t0)/1000,x=b.x+b.vx*t,y=b.y+b.vy*t,c=['#35e6ff','#ffa63d','#5dff7a','#8aa8ff','#ff5de0'][b.k]||'#fff';
+  bx.strokeStyle=c;bx.lineWidth=5;bx.beginPath();bx.moveTo(x-b.vx*.03,y-b.vy*.03);bx.lineTo(x,y);bx.stroke()}
+ for(const t of snap.tw||[]){const own=p&&t[4]===p.s,c=['#35e6ff','#ffa63d','#5dff7a','#8aa8ff','#ff5de0'][t[2]];
+  bx.fillStyle='#0b1228';bx.strokeStyle=c;bx.lineWidth=own?6:4;bx.beginPath();bx.arc(t[0],t[1],own?17:13,0,6.28);bx.fill();bx.stroke();
+  bx.fillStyle=c;bx.beginPath();bx.arc(t[0],t[1],own?8:6,0,6.28);bx.fill()}
+ if(NV>=-1&&NV!==-1){const y=NV<0?540:NV;bx.fillStyle='rgba(255,240,170,.55)';bx.fillRect(0,y-10,BW,50);bx.fillStyle='#fff';bx.fillRect(0,y,BW,6)}
+}
+requestAnimationFrame(drawBF);
 window.__play={onMsg,get snap(){return snap},render,send,id};
 })();
 </script>
