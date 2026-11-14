@@ -604,8 +604,8 @@ function drawPrep(){
   txt(ROOM,FW/2+60,py+170,78,'#ffe03d','left','800',18);
   txt(shortUrl(),FW/2+60,py+232,17,'#c9d4ff','left','600');
   const left=act.length?Math.ceil(prepT):'';
-  txt(act.length?act.length+' player'+(act.length>1?'s':'')+' ready to defend  ·  starts in '+left+'s  (Space = start now)':'Waiting for the first player...',FW/2,py+300,20,act.length?'#5dff7a':'#8a97c8','center','700');
-  txt(netMode==='supabase'?(netStatus==='online'?'ONLINE':'connecting...'):'LOCAL MODE: tap here (or press K) to add Supabase keys.',FW/2,py+330,14,netMode==='supabase'?'#5dff7a':'#ffb06a','center','600');
+  txt(act.length?act.length+' player'+(act.length>1?'s':'')+' ready to defend  ·  starts in '+left+'s  (Space = start now)':'Waiting for the first player...',FW/2,py+358,20,act.length?'#5dff7a':'#8a97c8','center','700');
+  txt(netMode==='supabase'?(netStatus==='online'?'ONLINE':'connecting...'):'LOCAL MODE: tap here (or press K) to add Supabase keys.',FW/2,py+390,14,netMode==='supabase'?'#5dff7a':'#ffb06a','center','600');
  }else{
   const rd=act.filter(p=>p.rd).length;
   txt('NEXT: WAVE '+(G.wave+1)+(((G.wave+1)%5===0)?'  ⚠ BOSS':''),FW/2,TOPY+60,40,((G.wave+1)%5===0)?'#ff5577':'#35e6ff','center','800',16);
@@ -683,7 +683,7 @@ function cfgPrompt(){
   if(u&&kk)window.SBNet.setCfg(u.trim(),kk.trim());else window.SBNet.clearCfg();
   location.reload();
 }
-cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect();if(state==='prep'&&G.wave===0&&(e.clientY-r.top)/r.height>.6&&(e.clientY-r.top)/r.height<.8)cfgPrompt()});
+cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect();if(state==='prep'&&G.wave===0&&(e.clientY-r.top)/r.height>.55&&(e.clientY-r.top)/r.height<.8)cfgPrompt()});
 addEventListener('keydown',e=>{
  const k=e.key.toLowerCase();
  if(k===' '||k==='enter'){e.preventDefault();if(state==='prep'&&stationed().length)startWave();else if(state==='cards')resolveVotes();else if(state==='over'){newRound();pushSnap()}}
