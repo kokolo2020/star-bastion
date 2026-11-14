@@ -95,7 +95,7 @@ button:disabled{opacity:.4}
 <script>
 (()=>{
 'use strict';
-const SCOL=['#35e6ff','#ff5de0','#5dff7a','#ffa63d','#8aa8ff','#ffe03d'];
+const SCOL=['#35e6ff','#ff5de0','#5dff7a','#ffa63d','#8aa8ff','#ffe03d','#ff6b6b','#b07aff','#4ee0c0','#e8eeff'];
 const TY=[{n:'PULSE',c:50,col:'#35e6ff'},{n:'CANNON',c:100,col:'#ffa63d'},{n:'LASER',c:140,col:'#5dff7a'},{n:'FROST',c:90,col:'#8aa8ff'},{n:'RAIL',c:200,col:'#ff5de0'}];
 const $=id=>document.getElementById(id);
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
@@ -141,7 +141,7 @@ const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[
 function renderPick(){
  $('pickSub').textContent='Tap a free station to defend';
  let h='';
- for(let s=0;s<6;s++){
+ for(let s=0;s<snap.os.length;s++){
   const oid=snap.os[s],o=oid&&snap.pl.find(x=>x.id===oid);
   h+='<div class="st'+(o?' taken':'')+'" data-s="'+s+'" style="border-color:'+SCOL[s]+';color:'+SCOL[s]+'">STATION '+(s+1)+'<small>'+(o?esc(o.nm):'free')+'</small></div>';
  }
