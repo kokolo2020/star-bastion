@@ -1,0 +1,25 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>diag</title>
+<style>body{background:#070516;color:#e8eeff;font:15px monospace;padding:12px}pre{white-space:pre-wrap;word-break:break-all}</style></head><body>
+<h3>Star Bastion connection test</h3><pre id="o">running...</pre>
+<script src="net.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const o=document.getElementById('o');const L=s=>o.textContent+= '\n'+s;o.textContent='';
+const c=window.SBNet.getCfg();
+L('UA: '+navigator.userAgent.slice(0,90));
+L('cfg: '+(c?c.u+' keylen='+c.k.length+' '+c.k.slice(0,8):'NONE (scan the host QR first)'));
+L('supabase-js loaded: '+!!window.supabase);
+if(c){
+ const ws=new WebSocket(c.u.replace('https','wss')+'/realtime/v1/websocket?apikey='+encodeURIComponent(c.k)+'&vsn=1.0.0');
+ const t0=Date.now();
+ ws.onopen=()=>{L('RAW WS open after '+(Date.now()-t0)+'ms');setTimeout(()=>ws.close(),500)};
+ ws.onerror=e=>L('RAW WS error');
+ ws.onclose=e=>L('RAW WS close code='+e.code+' reason='+e.reason);
+ fetch(c.u+'/realtime/v1/api/ping',{headers:{apikey:c.k}}).then(r=>L('fetch ping '+r.status)).catch(e=>L('fetch fail '+e));
+ if(window.supabase){
+  const cl=window.supabase.createClient(c.u,c.k);
+  const ch=cl.channel('diag-'+Math.random());
+  ch.subscribe((s,e)=>L('sdk status '+s+(e?' '+(e.message||e):'')));
+ }
+}
+</script></body></html>
