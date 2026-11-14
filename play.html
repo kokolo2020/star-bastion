@@ -106,7 +106,7 @@ let net=null,snap=null,lastSnap=0,joined=false,sheetSlot=-1,myName='';
 const show=n=>{document.querySelectorAll('.scr').forEach(e=>e.classList.toggle('on',e.id==='s-'+n))};
 function msg(s){const m=$('msg');m.textContent=s;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',1800);if(navigator.vibrate)navigator.vibrate(60)}
 function send(o){if(net){o.id=id;net.send(o)}}
-function setChip(s,d){const c=$('chip');c.className=s==='online'?'on':s==='local'?'loc':'off';c.textContent=s==='online'?'online':s==='local'?'local test (no keys)':s==='error'?'no connection ['+(d||'')+']':'connecting... '+(d||'')}
+function setChip(s,d){const c=$('chip');c.className=s==='online'?'on':s==='local'?'loc':'off';const cf=window.SBNet.getCfg();const dbg=cf?' {'+cf.u.replace('https://','').slice(0,8)+' k'+cf.k.length+' '+cf.k.slice(0,6)+'}':'';c.textContent=dbg+' '+(s==='online'?'online':s==='local'?'local test (no keys)':s==='error'?'no connection ['+(d||'')+']':'connecting... '+(d||''))}
 
 function connect(){
  if(net)return;
