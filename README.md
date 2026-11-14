@@ -39,3 +39,5 @@ node --test tests/*.cjs
 The automated tests cover station ownership, five weapons, energy costs, ready-up/NOVA, icon dimensions/transparency, JavaScript parsing and audio activation/scheduling/visibility. Browser QA additionally covers the phone build panel, synchronized gameplay and host sound toggles. Real device/Supabase latency and music listening should be checked before going live.
 
 See `assets/art/ARTWORK.md` for asset sources and prompts.
+
+Android layout regression preview: `tests/phone-layout.html` reproduces a charged NOVA and six max-level turrets at wave 21. Verify at 390×650 and 320×568: the battlefield stays at least 160px high and the controller scrolls to NOVA/leave. The fixture is synthetic and has no real host; its offline status is expected.

@@ -8,3 +8,8 @@ body.controller{background:radial-gradient(ellipse at 10% 0,#26315599,transparen
 @media(prefers-reduced-motion:reduce){button,.bar i{transition:none}.controller #novaBtn{animation:none}}
 
 .host-tools select{font:700 11px system-ui;max-width:190px;border:1px solid #6addff55;border-radius:20px;background:#09172ff2;color:#d9edff;padding:8px 12px;cursor:pointer;box-shadow:0 4px 18px #0006}.host-tools select:focus-visible{outline:3px solid #ffd16b;outline-offset:3px}.controller .sector-strip{display:flex;justify-content:space-between;gap:8px;margin:12px 0 -3px;font-size:9px;letter-spacing:1.2px;color:#8fa8c7}.sector-strip strong{font-weight:700;letter-spacing:.5px}@media(max-width:600px){.host-tools select{font-size:10px;max-width:170px}}
+/* Android's flex layout must scroll the controls, never squash the battlefield. */
+.controller #s-play{overflow-y:auto;overscroll-behavior-y:contain;scroll-padding-bottom:24px}
+.controller #s-play>*,.controller #bfw{flex-shrink:0}
+.controller #bfw{flex:0 0 auto;width:100%;aspect-ratio:80/41;min-height:160px;position:relative}
+.controller #bf{display:block;width:100%;height:auto;aspect-ratio:80/41}

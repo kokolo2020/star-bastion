@@ -1,0 +1,12 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Android controller regression fixture</title><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;display:block}</style><iframe id="phone" title="Wave 21 phone controller"></iframe><script>
+(async()=>{
+ const html=await(await fetch('../play.html')).text();
+ const fixture=`<script>
+ document.getElementById('nm').value='Layout test';document.getElementById('rm').value='LAYOUT';document.getElementById('goJoin').click();
+ const id=window.__play.id;
+ window.__play.onMsg({t:'snap',n:1,st:'wave',w:21,region:'verdant',hp:200,mh:200,ch:100,tm:null,pl:[{id,nm:'Layout test',s:5,en:2123,rd:0,k:100,sl:[[4,5,800],[1,5,400],[4,5,800],[2,5,560],[4,5,800],[3,5,360]]}],os:[0,0,0,0,0,id,0,0,0,0],tw:[[660,618,4,5,5],[700,618,1,5,5]],cd:null,best:21,kills:100,ds:0,res:'',ne:16});
+ window.__play.onMsg({t:'fx',e:[[1,680,350,0,100],[2,540,220,5,70]],b:[[650,420,0,-300,0]],nv:-1});
+ <\/script>`;
+ document.getElementById('phone').srcdoc=html.replace('<head>','<head><base href="'+new URL('../',location.href).href+'">').replace('</body>',fixture+'</body>');
+})();
+</script></html>
