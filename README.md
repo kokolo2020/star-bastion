@@ -13,7 +13,7 @@ Multiplayer fortress defense for a livestream or big screen. Up to ten players s
 
 Every five-wave block has a different space region, changing after the boss during the next preparation phase: **Aurora Reach** (1–5), **Ember Nebula** (6–10), **Glacial Drift** (11–15), **Shattered Belt** (16–20), **Verdant Rift** (21–25), **Eventide Horizon** (26–30). The cycle repeats from wave 31.
 
-Host and phone battlefield share the same region ID in the host snapshot. The host's **Space region** selector overrides only scenery, with **Auto · every 5 waves** restoring progression. Changes crossfade over 2.4 seconds; reduced-motion mode switches immediately. Planets, crystals and asteroids are decorative, with no collision or gameplay effects. Procedural artwork is cached instead of rebuilt each frame; phones use half-resolution backgrounds. No scenery downloads or API keys are required.
+Host and phone battlefield share the same region ID in the host snapshot. The host's **Space region** selector overrides only scenery, with **Auto · every 5 waves** restoring progression. Changes crossfade over 2.4 seconds; reduced-motion mode switches immediately. Planets, crystals and asteroids are decorative, with no collision or gameplay effects. Procedural artwork is cached instead of rebuilt each frame; host and phones use the same cached artwork. No scenery downloads or API keys are required.
 
 ## Online multiplayer
 
@@ -36,8 +36,14 @@ Serve the directory over HTTP, e.g. `python3 -m http.server 8977`. Open `host.ht
 node --test tests/*.cjs
 ```
 
-The automated tests cover station ownership, five weapons, energy costs, ready-up/NOVA, icon dimensions/transparency, JavaScript parsing and audio activation/scheduling/visibility. Browser QA additionally covers the phone build panel, synchronized gameplay and host sound toggles. Real device/Supabase latency and music listening should be checked before going live.
+The automated tests cover shared enemy/turret/effect rendering, focus-camera bounds, rich FX packets, station ownership, five weapons, energy costs, ready-up/NOVA, icon dimensions/transparency, JavaScript parsing and audio activation/scheduling/visibility. Browser QA additionally covers the phone build panel, synchronized gameplay and host sound toggles. Real device/Supabase latency and music listening should be checked before going live.
 
 See `assets/art/ARTWORK.md` for asset sources and prompts.
 
 Android layout regression preview: `tests/phone-layout.html` reproduces a charged NOVA and six max-level turrets at wave 21. Verify at 390×650 and 320×568: the battlefield stays at least 160px high and the controller scrolls to NOVA/leave. The fixture is synthetic and has no real host; its offline status is expected.
+
+### Phone battlefield graphics
+
+Host and controller share `battle-renderer.js`: seven enemy silhouettes, shields, frost, textured aiming turrets, muzzle flashes, beams, explosions and NOVA. The controller defaults to a closer station view; **Show full battlefield** restores the overview. Canvas resolution follows the screen density (capped at 2×), while upgrade controls remain scrollable.
+
+The host sends bounded visual updates at the existing 8 Hz rate; simulation, damage and purchases remain host-authoritative. Older running hosts remain compatible, but need a refresh between games to send the new beam, particle and aiming data. Refresh the phone to load the new renderer. The regression fixture includes synthetic rich effects and is not proof of real-device network latency.

@@ -75,7 +75,7 @@ button:disabled{opacity:.4}
  <div class="row"><div class="big" id="en">⚡0</div><div style="flex:1;text-align:center;color:#8a97c8" id="wv">WAVE 0</div><div id="stn" style="font-weight:800"></div></div>
  <div class="row" style="margin-top:8px"><span style="font-size:11px;color:#8a97c8;width:50px">FORT</span><div class="bar"><i id="hpI" style="background:#5dff7a"></i><b id="hpT"></b></div></div>
  <div class="row" style="margin-top:6px"><span style="font-size:11px;color:#8a97c8;width:50px">NOVA</span><div class="bar"><i id="chI" style="background:#ff9a3d"></i><b id="chT"></b></div></div>
- <div class="sector-strip"><span>LIVE BATTLEFIELD</span><strong id="sectorName">Aurora Reach</strong></div><div id="bfw"><canvas id="bf" width="640" height="328"></canvas></div>
+ <div class="sector-strip"><span>LIVE BATTLEFIELD</span><strong id="sectorName">Aurora Reach</strong></div><div class="battle-view-tools"><span id="battleHint">Following your station</span><button id="battleView" class="sec" aria-pressed="true">Show full battlefield</button></div><div id="bfw"><canvas id="bf" width="640" height="328"></canvas></div>
  <div id="slots"></div>
  <div id="info" style="text-align:center;color:#c9d4ff;min-height:22px"></div>
  <button id="rdy" class="sec" style="margin-top:8px;display:none">READY</button>
@@ -97,6 +97,7 @@ button:disabled{opacity:.4}
 <div id="sheet" inert aria-hidden="true"></div>
 
 <script src="regions.js"></script>
+<script src="battle-renderer.js"></script>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="net.js"></script>
@@ -247,39 +248,67 @@ addEventListener('pagehide',()=>{if(joined&&net)send({t:'bye'})});
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(room&&ls.get('sb_name')&&qs.get('room')===null&&ls.get('sb_proom')===room){/* returning player: stay on join screen until they tap */}
 
-/* ---- live battlefield ---- */
-const ENC=['#ff5577','#ffa040','#e060ff','#40e0ff','#a070ff','#e05050','#ff3050'],ENR=[8,10,6,11,12,16,30];
-const bf=$('bf'),bx=bf.getContext('2d'),BW=1280,TOP=64,BH=656,K=640/BW;
-let EM={},BL=[],NV=-1,lastFxT=0;
+/* ---- shared host-quality live battlefield ---- */
+const ENC=['#ff5577','#ffa040','#e060ff','#40e0ff','#a070ff','#e05050','#ff3050'],ENR=[8,10,6,11,12,16,30],ENK=['scout','grunt','swarm','shield','splitter','tank','boss'];
+const bf=$('bf'),bx=bf.getContext('2d'),battleArt=window.BattleRender.create(bx,IMG);
+const BW=1280,TOP=64,BH=656;
+let EM=Object.create(null),BL=[],BM=[],PT=[],FL=[],TA=Object.create(null),NV=-1,NX=null,lastFxT=0,fxSpeed=1;
+let focusView=ls.get('sb_battle_view')!=='all',fitDirty=true,viewCamera=null;
+function resizeBattle(){
+ const p=me();viewCamera=window.BattleRender.camera(p?p.s:0,snap?snap.os.length:10,focusView&&!!p&&p.s>=0);
+ const ratio=viewCamera.width/viewCamera.height;$('bfw').style.aspectRatio=String(ratio);bf.style.aspectRatio=String(ratio);
+ const w=Math.max(1,bf.clientWidth||$('bfw').clientWidth||320),dpr=Math.min(2,window.devicePixelRatio||1);
+ const rw=Math.round(w*dpr),rh=Math.round(w/ratio*dpr);if(bf.width!==rw||bf.height!==rh){bf.width=rw;bf.height=rh}
+ $('battleView').textContent=focusView?'Show full battlefield':'Focus my station';$('battleView').setAttribute('aria-pressed',String(focusView));$('battleHint').textContent=focusView?'Following your station · detailed view':'All stations · full battlefield';fitDirty=false;
+}
+$('battleView').onclick=()=>{focusView=!focusView;ls.set('sb_battle_view',focusView?'station':'all');fitDirty=true;resizeBattle()};
+addEventListener('resize',()=>{fitDirty=true});if(window.ResizeObserver)new ResizeObserver(()=>{fitDirty=true}).observe($('bfw'));
+const num=(v,f=0)=>Number.isFinite(v)?v:f;
+const color=v=>/^#[0-9a-f]{6}$/i.test(v||'')?v:'#ffffff';
 function onFx(m){
- const now=performance.now();lastFxT=now;const seen={};
- for(const a of m.e){seen[a[0]]=1;const o=EM[a[0]];if(o){o.tx=a[1];o.ty=a[2];o.hp=a[4]}else EM[a[0]]={x:a[1],y:a[2],tx:a[1],ty:a[2],k:a[3],hp:a[4]}}
+ const now=performance.now();lastFxT=now;fxSpeed=Math.max(1,Math.min(3,num(m.speed,1)));const seen=Object.create(null);
+ for(const a of (Array.isArray(m.e)?m.e:[]).slice(0,150)){
+  if(!Array.isArray(a)||a.length<5||!a.slice(0,5).every(Number.isFinite))continue;
+  const k=Math.max(0,Math.min(6,a[3]|0)),hp=Math.max(0,Math.min(100,a[4]));seen[a[0]]=1;const old=EM[a[0]];
+  const e=old||{x:a[1],y:a[2]};Object.assign(e,{tx:a[1],ty:a[2],k:ENK[k],hp,mhp:100,r:Math.max(1,Math.min(50,num(a[8],ENR[k]))),col:ENC[k],sh:a[5]?1:0,st:a[6]?1:0,fl:(a[7]||(old&&hp<old.hp)) ? .08 : 0});EM[a[0]]=e;
+ }
  for(const id in EM)if(!seen[id])delete EM[id];
- BL=m.b.map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],k:a[4],t0:now}));NV=m.nv;
+ BL=(Array.isArray(m.b)?m.b:[]).slice(0,80).filter(a=>Array.isArray(a)&&a.slice(0,5).every(Number.isFinite)).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],k:Math.max(0,Math.min(4,a[4]|0))}));
+ BM=(Array.isArray(m.bm)?m.bm:[]).slice(0,40).filter(a=>Array.isArray(a)&&a.slice(0,5).every(Number.isFinite)).map(a=>({x1:a[0],y1:a[1],x2:a[2],y2:a[3],t:Math.max(.14,Math.min(.3,a[4])),m:Math.max(.14,Math.min(.3,a[4])),col:color(a[5]),w:Math.max(1,Math.min(8,num(a[6],2)))}));
+ PT=(Array.isArray(m.pt)?m.pt:[]).slice(-40).filter(a=>Array.isArray(a)&&a.slice(0,6).every(Number.isFinite)).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],life:Math.max(0,Math.min(2,a[4])),max:Math.max(.01,num(a[5],.75)),col:color(a[6]),sz:Math.max(1,Math.min(4,num(a[7],1))),ring:a[8]===1,fl:a[8]===2,r:Math.max(0,Math.min(250,num(a[9])))}));
+ FL=(Array.isArray(m.fl)?m.fl:[]).slice(-12).filter(a=>Array.isArray(a)&&a.slice(0,3).every(Number.isFinite)).map(a=>({x:a[0],y:a[1],t:Math.max(0,Math.min(1,a[2])),s:String(a[3]).slice(0,12),c:!!a[4]}));
+ const next=Object.create(null);for(const a of (Array.isArray(m.tr)?m.tr:[]).slice(0,60)){if(!Array.isArray(a)||!a.slice(0,3).every(Number.isFinite))continue;const key=a[0]+':'+a[1],old=TA[key];next[key]={ang:old?old.ang:a[2],target:a[2],fl:a[3] ? .1 : 0}}TA=next;
+ NV=Number.isFinite(m.nv)?m.nv:-1;NX=m.nx&&['charge','blast'].includes(m.nx.ph)?{ph:m.nx.ph,t:Math.max(0,num(m.nx.t)),y:num(m.nx.y,540)}:NV===-1?null:{ph:NV===-2?'charge':'blast',t:0,y:NV<0?540:NV};
 }
 let lastD=performance.now();
 function drawBF(){
- requestAnimationFrame(drawBF);
- const now=performance.now(),dt=Math.min(.1,(now-lastD)/1000);lastD=now;
+ requestAnimationFrame(drawBF);const now=performance.now(),dt=Math.min(.1,(now-lastD)/1000);lastD=now;
  if(!snap||!$('s-play').classList.contains('on')||document.hidden)return;
- if(now-lastFxT>1500){EM={};BL=[];NV=-1}
- const p=me(),NS=snap.os.length||10,SW=BW/NS;
- bx.setTransform(K,0,0,K,0,-TOP*K);
- Regions.draw(bx,BW,720,snap.region||Regions.forWave(snap.w).id,now/1000,{quality:.5,reducedMotion});
- if(p&&p.s>=0){bx.fillStyle=SCOL[p.s]+'22';bx.fillRect(p.s*SW,TOP,SW,BH)}
- bx.strokeStyle='rgba(90,130,255,.12)';bx.lineWidth=2;for(let s=1;s<NS;s++){bx.beginPath();bx.moveTo(s*SW,TOP);bx.lineTo(s*SW,TOP+BH);bx.stroke()}
- bx.strokeStyle='#35e6ff';bx.lineWidth=4;bx.beginPath();bx.moveTo(0,540);bx.lineTo(BW,540);bx.stroke();
- for(const id in EM){const o=EM[id];o.x+=(o.tx-o.x)*Math.min(1,dt*12);o.y+=(o.ty-o.y)*Math.min(1,dt*12);
-  const r=Math.max(7,ENR[o.k]*1.3);bx.fillStyle=ENC[o.k];bx.shadowColor=ENC[o.k];bx.shadowBlur=14;bx.beginPath();bx.arc(o.x,o.y,r,0,6.28);bx.fill();bx.shadowBlur=0;
-  if(o.k>=5&&o.hp<100){bx.fillStyle='#000a';bx.fillRect(o.x-r,o.y-r-9,r*2,5);bx.fillStyle='#5dff7a';bx.fillRect(o.x-r,o.y-r-9,r*2*o.hp/100,5)}}
- bx.lineCap='round';
- for(const b of BL){const t=(now-b.t0)/1000,x=b.x+b.vx*t,y=b.y+b.vy*t,c=['#35e6ff','#ffa63d','#5dff7a','#8aa8ff','#ff5de0'][b.k]||'#fff';
-  bx.strokeStyle=c;bx.lineWidth=5;bx.beginPath();bx.moveTo(x-b.vx*.03,y-b.vy*.03);bx.lineTo(x,y);bx.stroke()}
- for(const t of snap.tw||[]){const own=p&&t[4]===p.s,c=['#35e6ff','#ffa63d','#5dff7a','#8aa8ff','#ff5de0'][t[2]];
-  if(IMG[t[2]]._ok){bx.drawImage(IMG[t[2]],t[0]-24,t[1]-24,48,48);continue}
-  bx.fillStyle='#0b1228';bx.strokeStyle=c;bx.lineWidth=own?6:4;bx.beginPath();bx.arc(t[0],t[1],own?17:13,0,6.28);bx.fill();bx.stroke();
-  bx.fillStyle=c;bx.beginPath();bx.arc(t[0],t[1],own?8:6,0,6.28);bx.fill()}
- if(NV>=-1&&NV!==-1){const y=NV<0?540:NV;bx.fillStyle='rgba(255,240,170,.55)';bx.fillRect(0,y-10,BW,50);bx.fillStyle='#fff';bx.fillRect(0,y,BW,6)}
+ if(fitDirty||!viewCamera)resizeBattle();const p=me(),cam=window.BattleRender.camera(p?p.s:0,snap.os.length||10,focusView&&!!p&&p.s>=0);
+ if(cam.x!==viewCamera.x||cam.width!==viewCamera.width)resizeBattle();
+ if(now-lastFxT>1500){EM=Object.create(null);BL=[];BM=[];PT=[];FL=[];TA=Object.create(null);NV=-1;NX=null}
+ const K=bf.width/viewCamera.width,bottom=720,SW=BW/(snap.os.length||10),step=dt*fxSpeed;
+ bx.setTransform(K,0,0,K,-viewCamera.x*K,-TOP*K);bx.imageSmoothingEnabled=true;
+ Regions.draw(bx,BW,bottom,snap.region||Regions.forWave(snap.w).id,now/1000,{reducedMotion});
+ if(p&&p.s>=0){bx.fillStyle=SCOL[p.s]+'16';bx.fillRect(p.s*SW,TOP,SW,BH)}
+ bx.strokeStyle='rgba(90,160,215,.09)';bx.lineWidth=1;for(let s=1;s<snap.os.length;s++){bx.beginPath();bx.moveTo(s*SW,TOP);bx.lineTo(s*SW,bottom);bx.stroke()}
+ const deck=bx.createLinearGradient(0,540,0,bottom);deck.addColorStop(0,'#26394c');deck.addColorStop(.08,'#111e33');deck.addColorStop(1,'#030919');bx.fillStyle=deck;bx.fillRect(0,540,BW,180);
+ for(let x=0;x<BW;x+=32){bx.fillStyle=x%128===0?'#8090a2':'#243447';bx.fillRect(x,543,28,5)}
+ bx.strokeStyle='#68eaff';bx.shadowColor='#68eaff';bx.shadowBlur=10;bx.lineWidth=3;bx.beginPath();bx.moveTo(0,540);bx.lineTo(BW,540);bx.stroke();bx.shadowBlur=0;
+ const enemies=Object.values(EM);for(const e of enemies){e.x+=(e.tx-e.x)*Math.min(1,dt*12);e.y+=(e.ty-e.y)*Math.min(1,dt*12);e.fl=Math.max(0,e.fl-step);battleArt.enemy(e,now/1000,enemies.length>90)}
+ const turretFrames=[];
+ for(const t of snap.tw||[]){
+  const aim=TA[t[0]+':'+t[1]];let nearest=null,bestDistance=Infinity;
+  if(!aim)for(const e of enemies){const d=(e.x-t[0])**2+(e.y-t[1])**2;if(e.hp>0&&d<bestDistance){bestDistance=d;nearest=e}}
+  if(aim){aim.ang+=Math.atan2(Math.sin(aim.target-aim.ang),Math.cos(aim.target-aim.ang))*Math.min(1,dt*16);aim.fl=Math.max(0,aim.fl-step)}
+  const turret={x:t[0],y:t[1],k:t[2],l:t[3],ang:aim?aim.ang:nearest?Math.atan2(nearest.y-t[1],nearest.x-t[0]):-1.57,fl:aim?aim.fl:0};turretFrames.push(turret);battleArt.tower(turret,now/1000,SCOL[t[4]]||window.BattleRender.TYPES[t[2]].col);
+ }
+ for(const b of BL){b.x+=b.vx*step;b.y+=b.vy*step}
+ for(const b of BM)b.t=Math.max(0,b.t-step);
+ for(const p of PT){p.life=Math.max(0,p.life-step);p.x+=p.vx*step;p.y+=p.vy*step;const f=Math.pow(.97,step/.05);p.vx*=f;p.vy*=f}
+ for(const f of FL){f.t=Math.max(0,f.t-step);f.y-=22*step}
+ battleArt.effects({bullets:BL,beams:BM.filter(b=>b.t>0),parts:PT.filter(p=>p.life>0),floats:FL.filter(f=>f.t>0)},now/1000);
+ if(NX){NX.t+=step;if(NX.ph==='blast')NX.y-=760*step;battleArt.nova(NX,turretFrames,now/1000)}
 }
 requestAnimationFrame(drawBF);
 window.__play={onMsg,get snap(){return snap},render,send,id};

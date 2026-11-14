@@ -13,3 +13,5 @@ body.controller{background:radial-gradient(ellipse at 10% 0,#26315599,transparen
 .controller #s-play>*,.controller #bfw{flex-shrink:0}
 .controller #bfw{flex:0 0 auto;width:100%;aspect-ratio:80/41;min-height:160px;position:relative}
 .controller #bf{display:block;width:100%;height:auto;aspect-ratio:80/41}
+
+.controller .battle-view-tools{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:7px 0 -3px}.battle-view-tools span{font:10px system-ui;color:#91abc8}.controller #battleView{font:700 10px system-ui;padding:8px 10px;min-height:32px;border:1px solid #64dbff55;background:#10243b;color:#9cecff;border-radius:8px}.controller #bfw,.controller #bf{transition:none}
