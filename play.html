@@ -57,6 +57,7 @@ button:disabled{opacity:.4}
  <input id="nm" placeholder="Your name" maxlength="12" autocomplete="off">
  <input id="rm" class="code" placeholder="ROOM" maxlength="6" autocomplete="off">
  <button id="goJoin">JOIN GAME</button>
+ <a id="dg" style="margin-top:22px;color:#8a97c8;text-align:center;font-size:13px">Run connection test</a>
 </div>
 
 <div class="scr" id="s-pick">
@@ -102,6 +103,7 @@ let id=ls.get('sb_id');if(!id){id='p'+Math.random().toString(36).slice(2,10)+Dat
 const qs=new URLSearchParams(location.search);
 let room=(qs.get('room')||ls.get('sb_proom')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 $('nm').value=ls.get('sb_name')||'';$('rm').value=room;
+$('dg').href='diag.html'+location.hash;
 let net=null,snap=null,lastSnap=0,joined=false,sheetSlot=-1,myName='';
 const show=n=>{document.querySelectorAll('.scr').forEach(e=>e.classList.toggle('on',e.id==='s-'+n))};
 function msg(s){const m=$('msg');m.textContent=s;m.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>m.style.display='none',1800);if(navigator.vibrate)navigator.vibrate(60)}
