@@ -32,7 +32,7 @@ button{padding:14px 28px;border:0;border-radius:12px;background:#35e6ff;color:#0
 <button id="go">JOIN</button><p id="jerr" style="color:#ff7a8a"></p></div>
 <canvas id="cv" style="display:none"></canvas>
 <div id="top" style="display:none"><span>LEVEL <b id="lv">1</b></span><span id="tm">0:00</span><span>TEAM <b id="sc">0</b></span></div>
-<div id="tg" style="display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 46px);z-index:6;background:rgba(5,8,20,.85);border:2px solid #35e6ff55;border-radius:16px;padding:4px 14px;font-weight:800;font-size:18px;white-space:nowrap"></div><canvas id="mm" width="120" height="75" style="display:none;position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom) + 72px);z-index:6;border:2px solid #35e6ff55;border-radius:8px;background:#070b1ccc"></canvas>
+<div id="tg" style="display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 40px);z-index:6;background:rgba(5,8,20,.88);border:2px solid #35e6ff55;border-radius:14px;padding:4px 10px;font-weight:800;font-size:18px;text-align:center"></div><canvas id="mm" width="120" height="75" style="display:none;position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom) + 72px);z-index:6;border:2px solid #35e6ff55;border-radius:8px;background:#070b1ccc"></canvas>
 <div id="chip" style="display:none">connecting</div>
 <div id="bot" style="display:none"><div id="msg">Pan with one finger, pinch to zoom. Tap the target.</div><button class="zb" id="zo">−</button><button class="zb" id="zi">+</button></div>
 <div id="ov"><h2>LEVEL CLEARED!</h2><div id="ovt" style="font-size:20px"></div><div id="ovn" style="margin-top:10px;color:#8a97c8"></div></div>
@@ -91,7 +91,7 @@ function ui(){
  const ov=$('ov');
  if(snap.ph==='clear'&&snap.lf){ov.style.display='flex';$('ovt').textContent=snap.lf.nm+' found the twins! +'+snap.lf.pts;$('ovn').textContent='Next level in '+(snap.ct||'')+'...';}else ov.style.display='none';
 const fnd=L&&L.mode==='find';$('tg').style.display=fnd&&snap.ph!=='lobby'?'block':'none';$('mm').style.display=fnd&&snap.ph!=='lobby'?'block':'none';
- if(fnd&&snap.ph!=='lobby'){$('tg').innerHTML='FIND <span style="font-size:32px;vertical-align:middle">'+L.te+'</span> <b style="color:#35e6ff">'+(snap.fd||[]).length+'/'+snap.tn+'</b>'}
+ if(fnd&&snap.ph!=='lobby'){const fd=new Set(snap.fd||[]);$('tg').innerHTML=L.tlist?('<div style="font-size:11px;color:#8a97c8;letter-spacing:1px">'+L.themeName+' · FIND '+fd.size+'/'+snap.tn+'</div><div style="display:flex;flex-wrap:wrap;gap:2px 6px;max-width:92vw;justify-content:center;font-size:23px;line-height:1.15">'+L.tlist.map(x=>'<span style="opacity:'+(fd.has(x.id)?.25:1)+';'+(fd.has(x.id)?'text-decoration:line-through':'')+'">'+x.e+'</span>').join('')+'</div>'):('FIND <span style="font-size:32px;vertical-align:middle">'+L.te+'</span> <b style="color:#35e6ff">'+fd.size+'/'+snap.tn+'</b>')}
  if(snap.ph==='lobby')setMsg(snap.cd!=null?'Starting in '+snap.cd+'s…':'Waiting for the host to start…');
 }
 /* input */
