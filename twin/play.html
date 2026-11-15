@@ -51,7 +51,21 @@ function layout(){W=innerWidth;H=innerHeight;dpr=Math.min(2,window.devicePixelRa
 addEventListener('resize',layout);
 function setMsg(m,c){const e=$('msg');e.textContent=m;e.style.color=c||'#cfe'}
 function setChip(s,d){const c=$('chip');c.className=s==='online'?'on':s==='local'?'':'off';c.textContent=s==='online'?'online':s==='local'?'local test':s==='error'?'no connection':'connecting...'}
+const SOLO=!!qs.get('solo');
+if(SOLO){$('rm').style.display='none';$('go').textContent='PLAY SOLO'}
+function connectSolo(){
+ const S=new TH.Session();S.setMode(qs.get('mode')==='twin'?'twin':'find');
+ const push=()=>onMsg(S.snap());
+ net={mode:'solo',send:function(m){
+  if(m.t==='join'){S.join(m.id,m.nm);if(S.ph==='lobby')S.start();push()}
+  else if(m.t==='tap'){const r=S.tap(m.id,m.a);onMsg({t:'res',to:ID,ok:r.ok,m:r.m});push()}
+  else if(m.t==='sel'){const r=S.sel(m.id,m.a,m.b);onMsg({t:'res',to:ID,ok:r.ok,m:r.m});push()}
+ }};
+ setChip('local');net.send({t:'join',id:ID,nm:$('nm').value});
+ setInterval(()=>{S.tick(.25);S.seen(ID);push()},250);
+}
 function connect(){
+ if(SOLO)return connectSolo();
  net=window.SBNet.open(room,onMsg,(s,d)=>{setChip(s,d);if(s==='online'||s==='local'){net.send({t:'hello',id:ID});net.send({t:'join',id:ID,nm:$('nm').value})}});
  setInterval(()=>{if(net)net.send({t:'hb',id:ID})},8000);
  addEventListener('pagehide',()=>{try{net.send({t:'bye',id:ID})}catch(e){}});
@@ -60,7 +74,7 @@ function connect(){
 $('go').onclick=()=>{
  const nm=$('nm').value.trim(),r=$('rm').value.toUpperCase().replace(/[^A-Z0-9]/g,'');
  if(!nm){$('jerr').textContent='Enter your name';return}
- if(r.length<4){$('jerr').textContent='Enter the room code';return}
+ if(!SOLO&&r.length<4){$('jerr').textContent='Enter the room code';return}
  room=r.length===5?r:'T'+r;try{localStorage.setItem('th_nm',nm)}catch(e){}
  $('join').style.display='none';['cv','top','bot','chip'].forEach(i=>$(i).style.display='');
  layout();connect();joined=true;requestAnimationFrame(frame);
