@@ -31,7 +31,7 @@ button{padding:14px 28px;border:0;border-radius:12px;background:#35e6ff;color:#0
 <input id="rm" maxlength="5" placeholder="Room code" autocapitalize="characters" autocomplete="off">
 <button id="go">JOIN</button><p id="jerr" style="color:#ff7a8a"></p></div>
 <canvas id="cv" style="display:none"></canvas>
-<div id="top" style="display:none"><span>LEVEL <b id="lv">1</b></span><span id="tm">0:00</span><span>TEAM <b id="sc">0</b></span></div>
+<div id="top" style="display:none"><span>LEVEL <b id="lv">1</b></span><span id="tm">0:00</span><span>YOU <b id="me">0</b> · TEAM <b id="sc">0</b></span></div>
 <div id="tg" style="display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 40px);z-index:6;background:rgba(5,8,20,.88);border:2px solid #35e6ff55;border-radius:14px;padding:4px 10px;font-weight:800;font-size:18px;text-align:center"></div><canvas id="mm" width="120" height="75" style="display:none;position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom) + 72px);z-index:6;border:2px solid #35e6ff55;border-radius:8px;background:#070b1ccc"></canvas>
 <div id="chip" style="display:none">connecting</div>
 <div id="bot" style="display:none"><div id="msg">Pan with one finger, pinch to zoom. Tap the target.</div><button class="zb" id="zo">−</button><button class="zb" id="zi">+</button></div>
@@ -82,12 +82,12 @@ $('go').onclick=()=>{
 function levelFor(s){const k=s.lv+':'+s.seed+':'+s.md;if(k===lvKey)return;lvKey=k;if(s.lv>0){L=TH.genLevel(s.lv,s.seed,s.md);layout();cam=Object.assign({},fit);if(s.md==='find'){cam.z=Math.max(fit.z,.4)}selId=null}else L=null}
 function onMsg(m){
  if(!m||!m.t)return;
- if(m.t==='st'){snap=m;levelFor(m);ui()}
+ if(m.t==='st'){const pf=snap?(snap.fd||[]).length:0,pl=snap?snap.lv:0;snap=m;levelFor(m);ui();if(m.lv===pl&&m.md==='find'&&(m.fd||[]).length>pf&&m.lf&&m.ph==='play'){setMsg(m.lf.nm+' found one! '+(m.tn-m.fd.length)+' left','#5dff7a')}}
  else if(m.t==='res'&&m.to===ID){setMsg(m.m,m.ok?'#5dff7a':'#ff9a7a');selId=null;if(navigator.vibrate)navigator.vibrate(m.ok?[60,40,120]:200);lock=Date.now()+(m.ok?0:900)}
 }
 function fmt(t){return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')}
 function ui(){
- if(!snap)return;$('lv').textContent=Math.max(1,snap.lv);$('tm').textContent=fmt(snap.el||0);$('sc').textContent=snap.sc;
+ if(!snap)return;$('lv').textContent=Math.max(1,snap.lv);$('tm').textContent=fmt(snap.el||0);$('sc').textContent=snap.sc;{const me=(snap.pl||[]).find(x=>x[0]===ID);$('me').textContent=me?me[2]:0}
  const ov=$('ov');
  if(snap.ph==='clear'&&snap.lf){ov.style.display='flex';$('ovt').textContent=snap.lf.nm+' found the twins! +'+snap.lf.pts;$('ovn').textContent='Next level in '+(snap.ct||'')+'...';}else ov.style.display='none';
 const fnd=L&&L.mode==='find';$('tg').style.display=fnd&&snap.ph!=='lobby'?'block':'none';$('mm').style.display=fnd&&snap.ph!=='lobby'?'block':'none';
