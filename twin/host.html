@@ -28,7 +28,7 @@ const S=new TH.Session();
 let W,H,dpr,PW,MAP,cam={cx:1200,cy:750,z:.3},T=0,prevLv=-1;
 function layout(){W=innerWidth;H=innerHeight;dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);PW=Math.max(340,Math.min(440,W*.27));MAP={x:16,y:60,w:W-PW-32,h:H-76}}
 addEventListener('resize',layout);layout();
-const preview=TH.genLevel(5,4242);
+const preview=TH.genLevel(5,4242,'twin');try{const q=new URLSearchParams(location.search).get('mode');if(q==='twin'||q==='find')S.setMode(q)}catch(e){}
 function send(m){if(net)try{net.send(m)}catch(e){}}
 let snapDirty=true;
 function onMsg(m){
@@ -38,11 +38,19 @@ function onMsg(m){
  if(m.t==='hb'){S.seen(m.id);return}
  if(m.t==='bye'){const p=S.players[m.id];if(p)p.seen=S.clk-70;return}
  if(m.t==='leave'){S.leave(m.id);snapDirty=true;return}
+ if(m.t==='tap'){const r=S.tap(m.id,m.a);send({t:'res',to:m.id,ok:r.ok,m:r.m});snapDirty=true;if(r.found)tourT=0;return}
  if(m.t==='sel'){const r=S.sel(m.id,m.a,m.b);send({t:'res',to:m.id,ok:r.ok,m:r.m});snapDirty=true;if(r.found)zoomT=0}
 }
 let zoomT=99;try{if(navigator.wakeLock)navigator.wakeLock.request('screen')}catch(e){}
+let tourT=99,tourRoom=0,tourAt=0;
 function camTarget(){
  const L=S.L||preview;
+ if(S.mode==='find'&&S.L){
+  if(S.ph==='clear'&&S.lastFind){const it=L.items[S.lastFind.a];return{cx:it.x,cy:it.y,z:Math.min(MAP.w,MAP.h)/330}}
+  if(S.flash&&S.clk-S.flash.t<3.5){const it=L.items[S.flash.id];return{cx:it.x,cy:it.y,z:Math.min(MAP.w,MAP.h)/330}}
+  if(S.clk-tourAt>7){tourAt=S.clk;tourRoom=Math.floor(Math.random()*L.rooms.length)}
+  const r=L.rooms[tourRoom%L.rooms.length];return{cx:r.x+r.w/2,cy:r.y+r.h/2,z:Math.min(MAP.w/r.w,MAP.h/r.h)*.95}
+ }
  if(S.ph==='clear'&&S.lastFind){const A=L.items[S.lastFind.a],B=L.items[S.lastFind.b],cx=(A.x+B.x)/2,cy=(A.y+B.y)/2,d=Math.hypot(A.x-B.x,A.y-B.y);
   const z=Math.min(MAP.w,MAP.h)/Math.max(420,d*1.8);return{cx,cy,z:Math.min(2.2,z)}}
  return TH.fitCam(MAP.w,MAP.h,10,L);
@@ -54,7 +62,7 @@ function frame(){
  requestAnimationFrame(frame);
  const n=performance.now()/1000;const dt=Math.min(.1,n-(frame.l||n));frame.l=n;T+=dt;
  if(!worker)tick();
- const tg=camTarget();const k=1-Math.pow(.02,dt);cam.cx+=(tg.cx-cam.cx)*k;cam.cy+=(tg.cy-cam.cy)*k;cam.z+=(tg.z-cam.z)*k;
+ const tg=camTarget();const k=1-Math.pow(.02,dt);cam.cx+=(tg.cx-cam.cx)*k;cam.cy+=(tg.cy-cam.cy)*k;cam.z+=(tg.z-cam.z)*k;{const L=S.L||preview,hw=MAP.w/2/cam.z,hh=MAP.h/2/cam.z;if(hw*2<L.WW)cam.cx=Math.max(hw,Math.min(L.WW-hw,cam.cx));if(hh*2<L.HH)cam.cy=Math.max(hh,Math.min(L.HH-hh,cam.cy))}
  render();
 }
 function txt(s,x,y,sz,col,al,wt){ctx.font=(wt||'700')+' '+sz+'px Inter,Arial,sans-serif';ctx.fillStyle=col||'#fff';ctx.textAlign=al||'left';ctx.textBaseline='alphabetic';ctx.fillText(s,x,y)}
@@ -63,13 +71,13 @@ function render(){
  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0b1230');g.addColorStop(1,'#04060f');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
  const L=S.L||preview;
  ctx.save();ctx.beginPath();TH.rr(ctx,MAP.x,MAP.y,MAP.w,MAP.h,18);ctx.clip();ctx.translate(MAP.x,MAP.y);ctx.fillStyle='#070b1c';ctx.fillRect(0,0,MAP.w,MAP.h);
- const tried=new Set();S.tried.forEach(t=>{tried.add(t.a);tried.add(t.b)});
- TH.draw(ctx,L,cam,MAP.w,MAP.h,{t:T,tried:S.ph==='play'?tried:null,hint:S.hintOf(),found:S.ph==='clear'&&S.lastFind?[S.lastFind.a,S.lastFind.b]:null});
+ const tried=new Set();S.tried.forEach(t=>{tried.add(t.a);tried.add(t.b)});const FD=S.mode==='find'&&S.L?S.fd:null;
+ TH.draw(ctx,L,cam,MAP.w,MAP.h,{t:T,tried:S.ph==='play'?tried:null,hint:S.hintOf(),found:S.mode==='twin'&&S.ph==='clear'&&S.lastFind?[S.lastFind.a,S.lastFind.b]:null,fd:FD});
  ctx.restore();
  ctx.strokeStyle='rgba(53,230,255,.35)';ctx.lineWidth=2;ctx.beginPath();TH.rr(ctx,MAP.x,MAP.y,MAP.w,MAP.h,18);ctx.stroke();
  // top bar
  txt('TWIN HUNT',20,42,28,'#35e6ff','left','800');
- txt('Find the two identical items. Clear the level to move on.',230,40,16,'#8a97c8','left','500');
+ txt(S.mode==='find'?'Find every hidden copy of the target in the giant picture together.':'Find the two identical items. Clear the level to move on.',230,40,16,'#8a97c8','left','500');
  // lobby overlay
  if(S.ph==='lobby'){
   ctx.fillStyle='rgba(3,5,14,.78)';ctx.fillRect(MAP.x,MAP.y,MAP.w,MAP.h);
@@ -79,7 +87,7 @@ function render(){
   txt('ROOM '+CODE,cx,cy+q/2+40,34,'#ffe03d','center','800');
   const np=Object.keys(S.players).length;
   txt(np?np+' player'+(np>1?'s':'')+' ready'+(S.autoT!=null?'  ·  starting in '+Math.ceil(S.autoT)+'s':''):'Waiting for players...',cx,cy+q/2+76,22,'#cfe','center','600');
-  txt('SPACE = start now',cx,cy+q/2+106,16,'#8a97c8','center','500');
+  txt('MODE: '+(S.mode==='find'?'HIDDEN OBJECTS':'FIND THE TWINS')+'   (M = switch)   ·   SPACE = start now',cx,cy+q/2+106,16,'#8a97c8','center','500');
  }
  // right panel
  const px=W-PW,ph=H-76;
@@ -89,6 +97,7 @@ function render(){
  txt('TEAM SCORE',px+24,200,14,'#8a97c8','left','600');txt(String(S.sc),px+24,238,34,'#5dff7a','left','800');
  if(S.hintOf())txt('HINT ACTIVE (yellow circle)',px+24,266,15,'#ffe03d','left','600');
  else if(S.ph==='play')txt('hint in '+Math.max(0,40-Math.floor(S.el))+'s',px+24,266,15,'#8a97c8','left','500');
+ if(S.mode==='find'&&S.L&&S.ph!=='lobby'){const found=S.fd.length,tot=S.L.targets.length;ctx.fillStyle='rgba(53,230,255,.12)';ctx.beginPath();TH.rr(ctx,px+PW/2,196,PW/2-32,92,14);ctx.fill();ctx.drawImage(TH.sprite(S.L.te),px+PW/2+10,204,76,76);txt('FIND',px+PW/2+98,232,14,'#8a97c8','left','700');txt(found+' / '+tot,px+PW/2+98,268,32,'#35e6ff','left','800')}
  txt('PLAYERS',px+24,304,14,'#8a97c8','left','600');
  const pl=Object.values(S.players).sort((a,b)=>b.pts-a.pts).slice(0,8);
  pl.forEach((p,i)=>{const y=336+i*30;ctx.globalAlpha=S.clk-p.seen>20?.4:1;txt((i+1)+'. '+p.nm,px+24,y,19,'#fff','left','600');txt(p.pts+'  ('+p.finds+')',px+PW-40,y,19,'#cfe','right','600')});
@@ -100,8 +109,8 @@ function render(){
  if(S.ph!=='lobby'){const q=Math.min(150,PW*.38);drawQR(px+PW-16-q-14,H-q-30,q);txt('SCAN TO JOIN',px+24,H-62,14,'#8a97c8','left','700');txt('ROOM '+CODE,px+24,H-34,24,'#ffe03d','left','800')}
  // clear banner
  if(S.ph==='clear'&&S.lastFind){
-  const f=S.lastFind;ctx.fillStyle='rgba(5,30,15,.82)';ctx.beginPath();TH.rr(ctx,MAP.x+MAP.w/2-300,MAP.y+16,600,92,16);ctx.fill();
-  txt('LEVEL CLEARED!',MAP.x+MAP.w/2,MAP.y+56,34,'#5dff7a','center','800');txt(f.nm+' found the twins in '+f.el+'s  (+'+f.pts+')',MAP.x+MAP.w/2,MAP.y+88,20,'#fff','center','600');
+  const f=S.lastFind;f.pts=f.pts;ctx.fillStyle='rgba(5,30,15,.82)';ctx.beginPath();TH.rr(ctx,MAP.x+MAP.w/2-300,MAP.y+16,600,92,16);ctx.fill();
+  txt('LEVEL CLEARED!',MAP.x+MAP.w/2,MAP.y+56,34,'#5dff7a','center','800');txt(f.nm+(S.mode==='find'?' found the last one in ':' found the twins in ')+f.el+'s  (+'+f.pts+')',MAP.x+MAP.w/2,MAP.y+88,20,'#fff','center','600');
  }
  const dot=netStatus==='online'?'#5dff7a':netStatus==='local'?'#ffe03d':'#ff5577';
  ctx.fillStyle=dot;ctx.beginPath();ctx.arc(W-30,30,7,0,6.3);ctx.fill();txt(netStatus==='online'?'ONLINE':netStatus==='local'?'LOCAL (tap here or press K for keys)':'CONNECTING',W-46,36,13,'#8a97c8','right','600');
@@ -110,6 +119,7 @@ function cfgPrompt(){const u=prompt('Supabase project URL',(window.SBNet.getCfg(
 cv.addEventListener('click',e=>{if(e.clientY<50&&e.clientX>W-420&&netStatus==='local')cfgPrompt()});
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();
  if(k===' '||k==='enter'){e.preventDefault();if(S.ph==='lobby')S.start();else if(S.ph==='clear')S.next();snapDirty=true}
+ else if(k==='m'&&S.ph==='lobby'){S.setMode(S.mode==='find'?'twin':'find');snapDirty=true}
  else if(k==='n'&&S.ph==='play'){S.next();snapDirty=true}
  else if(k==='f'){try{document.documentElement.requestFullscreen()}catch(x){}}
  else if(k==='k')cfgPrompt()});
