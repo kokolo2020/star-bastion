@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Twin Hunt</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#050814;color:#fff;font-family:Inter,system-ui,Arial,sans-serif;overflow:hidden;touch-action:none;overscroll-behavior:none}
+#join{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;background:radial-gradient(circle at 50% 20%,#14214d,#050814 70%)}
+#join h1{margin:0;font-size:38px;color:#35e6ff;letter-spacing:1px}
+#join p{margin:0;color:#8a97c8;text-align:center}
+input{width:100%;max-width:320px;padding:14px;border-radius:12px;border:2px solid #2a3a7a;background:#0b1230;color:#fff;font-size:20px;text-align:center}
+button{padding:14px 28px;border:0;border-radius:12px;background:#35e6ff;color:#06101f;font-weight:800;font-size:20px}
+#top{position:fixed;left:0;right:0;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;background:rgba(5,8,20,.85);font-weight:700;font-size:15px}
+#top b{color:#35e6ff}
+#bot{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:8px 12px calc(env(safe-area-inset-bottom) + 10px);background:rgba(5,8,20,.88);display:flex;gap:10px;align-items:center}
+#msg{flex:1;font-weight:700;font-size:16px;color:#cfe;min-height:22px}
+.zb{width:46px;height:46px;border-radius:12px;background:#16224d;color:#fff;font-size:26px;padding:0}
+#cv{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
+#chip{position:fixed;right:8px;top:calc(env(safe-area-inset-top) + 40px);z-index:6;font-size:11px;padding:3px 8px;border-radius:9px;background:#222;color:#aaa}
+#chip.on{background:#0a3;color:#fff}#chip.off{background:#a23;color:#fff}
+#ov{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(3,20,10,.82);text-align:center;padding:20px}
+#ov h2{margin:0 0 8px;color:#5dff7a;font-size:36px}
+</style>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../net.js"></script>
+<script src="game.js"></script>
+</head><body>
+<div id="join"><h1>TWIN HUNT</h1><p>Find the two identical items together.<br>Clear each level to move on.</p>
+<input id="nm" maxlength="12" placeholder="Your name" autocomplete="off">
+<input id="rm" maxlength="5" placeholder="Room code" autocapitalize="characters" autocomplete="off">
+<button id="go">JOIN</button><p id="jerr" style="color:#ff7a8a"></p></div>
+<canvas id="cv" style="display:none"></canvas>
+<div id="top" style="display:none"><span>LEVEL <b id="lv">1</b></span><span id="tm">0:00</span><span>TEAM <b id="sc">0</b></span></div>
+<div id="chip" style="display:none">connecting</div>
+<div id="bot" style="display:none"><div id="msg">Pan with one finger, pinch to zoom. Tap 2 identical items.</div><button class="zb" id="zo">−</button><button class="zb" id="zi">+</button></div>
+<div id="ov"><h2>LEVEL CLEARED!</h2><div id="ovt" style="font-size:20px"></div><div id="ovn" style="margin-top:10px;color:#8a97c8"></div></div>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const qs=new URLSearchParams(location.search);
+let ID;try{ID=localStorage.getItem('th_id');if(!ID){ID=Math.random().toString(36).slice(2,8);localStorage.setItem('th_id',ID)}}catch(e){ID=Math.random().toString(36).slice(2,8)}
+try{$('nm').value=localStorage.getItem('th_nm')||''}catch(e){}
+let room=(qs.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+if(room.length===5)$('rm').value=room.slice(1);else $('rm').value=room.slice(0,4);
+let net=null,L=null,snap=null,cam={cx:1200,cy:750,z:.3},fit=null,selId=null,lock=0,lvKey='',joined=false,T=0;
+const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+function layout(){W=innerWidth;H=innerHeight;dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);fit=TH.fitCam(W,H-130,0,L);fit.cy=fit.cy+0}
+addEventListener('resize',layout);
+function setMsg(m,c){const e=$('msg');e.textContent=m;e.style.color=c||'#cfe'}
+function setChip(s,d){const c=$('chip');c.className=s==='online'?'on':s==='local'?'':'off';c.textContent=s==='online'?'online':s==='local'?'local test':s==='error'?'no connection':'connecting...'}
+function connect(){
+ net=window.SBNet.open(room,onMsg,(s,d)=>{setChip(s,d);if(s==='online'||s==='local'){net.send({t:'hello',id:ID});net.send({t:'join',id:ID,nm:$('nm').value})}});
+ setInterval(()=>{if(net)net.send({t:'hb',id:ID})},8000);
+ addEventListener('pagehide',()=>{try{net.send({t:'bye',id:ID})}catch(e){}});
+ addEventListener('visibilitychange',()=>{if(!document.hidden&&net){net.send({t:'join',id:ID,nm:$('nm').value})}});
+}
+$('go').onclick=()=>{
+ const nm=$('nm').value.trim(),r=$('rm').value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+ if(!nm){$('jerr').textContent='Enter your name';return}
+ if(r.length<4){$('jerr').textContent='Enter the room code';return}
+ room=r.length===5?r:'T'+r;try{localStorage.setItem('th_nm',nm)}catch(e){}
+ $('join').style.display='none';['cv','top','bot','chip'].forEach(i=>$(i).style.display='');
+ layout();connect();joined=true;requestAnimationFrame(frame);
+};
+function levelFor(s){const k=s.lv+':'+s.seed;if(k===lvKey)return;lvKey=k;if(s.lv>0){L=TH.genLevel(s.lv,s.seed);layout();cam=Object.assign({},fit);selId=null}else L=null}
+function onMsg(m){
+ if(!m||!m.t)return;
+ if(m.t==='st'){snap=m;levelFor(m);ui()}
+ else if(m.t==='res'&&m.to===ID){setMsg(m.m,m.ok?'#5dff7a':'#ff9a7a');selId=null;if(navigator.vibrate)navigator.vibrate(m.ok?[60,40,120]:200);lock=Date.now()+(m.ok?0:900)}
+}
+function fmt(t){return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')}
+function ui(){
+ if(!snap)return;$('lv').textContent=Math.max(1,snap.lv);$('tm').textContent=fmt(snap.el||0);$('sc').textContent=snap.sc;
+ const ov=$('ov');
+ if(snap.ph==='clear'&&snap.lf){ov.style.display='flex';$('ovt').textContent=snap.lf.nm+' found the twins! +'+snap.lf.pts;$('ovn').textContent='Next level in '+(snap.ct||'')+'...';}else ov.style.display='none';
+ if(snap.ph==='lobby')setMsg(snap.cd!=null?'Starting in '+snap.cd+'s…':'Waiting for the host to start…');
+}
+/* input */
+const pts=new Map();let moved=0,startPos=null,pinch0=null;
+function toWorld(sx,sy){return{x:cam.cx+(sx-W/2)/cam.z,y:cam.cy+(sy-H/2)/cam.z}}
+function clampCam(){if(!fit)return;cam.z=Math.max(fit.z*.9,Math.min(cam.z,1.6));cam.cx=Math.max(0,Math.min(L?L.WW:TH.WW,cam.cx));cam.cy=Math.max(0,Math.min(L?L.HH:TH.HH,cam.cy))}
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pts.size===1){moved=0;startPos={x:e.clientX,y:e.clientY}}if(pts.size===2){const a=[...pts.values()];pinch0={d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),z:cam.z};moved=99}});
+cv.addEventListener('pointermove',e=>{
+ const p=pts.get(e.pointerId);if(!p)return;
+ if(pts.size===1){const dx=e.clientX-p.x,dy=e.clientY-p.y;moved+=Math.abs(dx)+Math.abs(dy);if(moved>10){cam.cx-=dx/cam.z;cam.cy-=dy/cam.z;clampCam()}}
+ else if(pts.size===2&&pinch0){const a=[...pts.values()];p.x=e.clientX;p.y=e.clientY;const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);zoomAt((a[0].x+a[1].x)/2,(a[0].y+a[1].y)/2,pinch0.z*d/pinch0.d)}
+ p.x=e.clientX;p.y=e.clientY;
+});
+function up(e){const had=pts.has(e.pointerId);pts.delete(e.pointerId);if(pts.size<2)pinch0=null;if(had&&e.type==='pointerup'&&moved<=10&&pts.size===0)tap(e.clientX,e.clientY)}
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+function zoomAt(sx,sy,nz){const b=toWorld(sx,sy);cam.z=nz;clampCam();cam.cx=b.x-(sx-W/2)/cam.z;cam.cy=b.y-(sy-H/2)/cam.z;clampCam()}
+cv.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,cam.z*(e.deltaY<0?1.15:.87))},{passive:false});
+$('zi').onclick=()=>zoomAt(W/2,H/2,cam.z*1.35);$('zo').onclick=()=>zoomAt(W/2,H/2,cam.z/1.35);
+function tap(sx,sy){
+ if(!L||!snap||snap.ph!=='play'||Date.now()<lock)return;
+ const w=toWorld(sx,sy),it=TH.hit(L,w.x,w.y,26/cam.z);
+ if(!it){selId=null;return}
+ if(navigator.vibrate)navigator.vibrate(15);
+ if(selId==null){selId=it.id;setMsg('Now tap the identical twin','#35e6ff');return}
+ if(selId===it.id){selId=null;setMsg('Selection cleared');return}
+ const a=selId;lock=Date.now()+1500;net.send({t:'sel',id:ID,a:a,b:it.id});setMsg('Checking…');setTimeout(()=>{if(selId===a)selId=null},1500);selId=it.id;
+}
+function frame(){
+ requestAnimationFrame(frame);T+=1/60;
+ ctx.fillStyle='#070b1c';ctx.fillRect(0,0,W,H);
+ if(!L){ctx.fillStyle='#8a97c8';ctx.font='700 20px Inter,Arial';ctx.textAlign='center';ctx.fillText(snap&&snap.ph==='lobby'?'Waiting for the host to start…':'Connecting to host…',W/2,H/2);return}
+ const tried=new Set();(snap.tr||[]).forEach(t=>{tried.add(t[0]);tried.add(t[1])});
+ TH.draw(ctx,L,cam,W,H,{t:T,tried:snap.ph==='play'?tried:null,hint:snap.hn,sel:selId,found:snap.ph==='clear'&&snap.lf?[snap.lf.a,snap.lf.b]:null});
+}
+})();
+</script></body></html>
